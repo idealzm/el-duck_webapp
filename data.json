@@ -1,0 +1,80 @@
+{
+  "cards": [
+    {
+      "id": "FlowStateWG",
+      "title": "AmneziaWG",
+      "description": "Быстрый и скрытный VPN.",
+      "country": "FI",
+      "buttonText": "Инструкция",
+      "buttonAction": "openInstruction",
+      "instruction": {
+        "title": "Инструкция по настройке",
+        "steps": [
+          {
+            "title": "Шаг 1: Установка ПО",
+            "type": "links",
+            "text": "Выберите вашу платформу:",
+            "links": [
+              {"name": "Windows", "url": "https://files.devflowstate.ru/files/amneziawg.msi"},
+              {"name": "macOS", "url": "https://apps.apple.com/ru/app/amneziawg/id6478942365"},
+              {"name": "Android", "url": "https://play.google.com/store/apps/details?id=org.amnezia.awg&hl=ru"},
+              {"name": "iOS", "url": "https://apps.apple.com/ru/app/amneziawg/id6478942365"}
+            ]
+          },
+          {
+            "title": "Шаг 2: Подготовка файла конфигурации",
+            "type": "links",
+            "text": "Скачайте файл по ссылке ниже:",
+            "links": [
+              {"name": "Файл конфигурации", "url": "https://files.devflowstate.ru/files/flowstateWG.conf"}
+            ]
+          },
+          {
+            "title": "Шаг 3: Подключение",
+            "type": "list",
+            "items": [
+              "Откройте приложение `AmneziaWG` на вашем устройстве.",
+              "Нажмите на кнопку `Добавить туннель` \nили `Импорт туннелей из файла`.",
+              "Выберите скачанный ранее файл.",
+              "Нажмите кнопку `Подключить` или на переключатель."
+            ]
+          }
+        ],
+        "footer": {
+          "text": "",
+          "buttonText": "Готово!"
+        }
+      }
+    },
+    {
+      "id": "FlowStateProxy",
+      "title": "Telegram Proxy",
+      "description": "Для стабильной работы Telegram без включения VPN.",
+      "country": "FI",
+      "buttonText": "Инструкция",
+      "buttonAction": "openInstruction",
+      "instruction": {
+        "title": "Инструкция по настройке",
+        "steps": [
+          {
+            "title": "Шаг 1",
+            "type": "links",
+            "text": "Перейдите по ссылке ниже:",
+            "links": [
+              {"name": "Ссылка для подключения", "url": "https://t.me/socks?server=s5.devflowstate.ru&port=1080&user=flowstateproxy&pass=7dd3245a5e7f264e"}
+            ]
+          },
+          {
+            "title": "Шаг 2",
+            "type": "text",
+            "text": "Нажмите на кнопку `Подключиться` в открывшемся окне."
+          }
+        ],
+        "footer": {
+          "text": "",
+          "buttonText": "Готово!"
+        }
+      }
+    }
+  ]
+}

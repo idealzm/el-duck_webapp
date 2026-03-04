@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Оплата успешна</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #0a0a0f;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        .success-icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+            animation: scaleIn 0.5s ease-out;
+        }
+        @keyframes scaleIn {
+            from {
+                transform: scale(0);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        p {
+            color: #888;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .loading {
+            display: none;
+            font-size: 14px;
+            color: #888;
+            margin-top: 20px;
+        }
+        .loading.active {
+            display: block;
+        }
+    </style>
+    <script src="https://telegram.org/js/telegram-web-app.js" async></script>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1>Оплата успешна!</h1>
+        <p id="message">Средства зачислены на ваш счёт</p>
+        <button class="btn" onclick="returnToApp()">Вернуться в магазин</button>
+        <p class="loading" id="loading">Перенаправление...</p>
+    </div>
+
+    <script>
+        const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        
+        // Get params from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const paymentId = urlParams.get('paymentId');
+        const status = urlParams.get('status');
+        
+        // Update UI based on status
+        const successIcon = document.querySelector('.success-icon');
+        const title = document.querySelector('h1');
+        const message = document.getElementById('message');
+        
+        if (status === 'success') {
+            successIcon.textContent = '✅';
+            title.textContent = 'Оплата успешна!';
+            message.textContent = 'Средства зачислены на ваш счёт';
+        } else if (status === 'pending') {
+            successIcon.textContent = '⏳';
+            title.textContent = 'Обработка платежа';
+            message.textContent = 'Платёж ещё обрабатывается. Пожалуйста, подождите.';
+            // Auto-reload after 5 seconds
+            setTimeout(() => {
+                window.location.reload();
+            }, 5000);
+        } else {
+            successIcon.textContent = '⚠️';
+            title.textContent = 'Статус уточняется';
+            message.textContent = 'Если средства были списаны, они скоро поступят на счёт';
+        }
+        
+        function returnToApp() {
+            const loading = document.getElementById('loading');
+            if (loading) loading.classList.add('active');
+            
+            // Try to close or redirect
+            if (tg && tg.close && typeof tg.close === 'function') {
+                tg.close();
+            } else {
+                // In browser - redirect to main page
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 500);
+            }
+        }
+        
+        // Auto-redirect after 5 seconds for success
+        if (status === 'success') {
+            setTimeout(() => {
+                if (tg && tg.close) {
+                    tg.close();
+                } else {
+                    window.location.href = '/';
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
