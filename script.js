@@ -1,5 +1,5 @@
 // Telegram Web App initialization
-const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
 // API Configuration
 const API_BASE_URL = '/api'; // PHP Backend API URL
@@ -20,23 +20,46 @@ function escapeHtml(text) {
 }
 
 // Initialize Telegram Web App
-if (tg && tg.expand && typeof tg.expand === 'function') {
+function initTelegram() {
+    if (!tg) {
+        console.log('Telegram WebApp not available');
+        return false;
+    }
+    
+    // Expand to full height
     tg.expand();
-}
-
-if (tg && tg.setHeaderColor && typeof tg.setHeaderColor === 'function') {
-    tg.setHeaderColor('#0a0a0f');
-}
-
-// Готовность Telegram WebApp
-function isTelegramReady() {
-    return tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+    
+    // Set header color
+    tg.setHeaderColor('#111111');
+    
+    // Set background color
+    tg.setBackgroundColor('#111111');
+    
+    // Enable closing confirmation
+    tg.enableClosingConfirmation();
+    
+    console.log('Telegram WebApp initialized');
+    console.log('Platform:', tg.platform);
+    console.log('version:', tg.version);
+    
+    return true;
 }
 
 // Get user data from Telegram
 function initUser() {
-    if (isTelegramReady()) {
+    console.log('=== Init User ===');
+    console.log('Telegram object:', tg);
+    
+    if (tg && tg.initDataUnsafe) {
+        console.log('initDataUnsafe:', tg.initDataUnsafe);
+        console.log('initDataUnsafe.user:', tg.initDataUnsafe.user);
+    }
+    
+    // Проверяем наличие данных пользователя от Telegram
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const tgUser = tg.initDataUnsafe.user;
+        console.log('Telegram user data:', tgUser);
+        
         currentUser = {
             id: tgUser.id,
             firstName: tgUser.first_name || 'Пользователь',
@@ -45,16 +68,19 @@ function initUser() {
             avatarUrl: tgUser.photo_url || null
         };
 
+        console.log('Created currentUser:', currentUser);
+
         // Update profile UI
         updateProfileUI();
 
         // Load balance from backend
         loadUserBalance();
         
-        console.log('Telegram user initialized:', currentUser);
+        console.log('Telegram user initialized successfully');
     } else {
         // Demo mode - no Telegram
-        console.log('Telegram not ready, using demo mode');
+        console.log('No Telegram user data, using demo mode');
+        
         currentUser = {
             id: 123456,
             firstName: 'Демо',
@@ -932,11 +958,14 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-    // Telegram WebApp ready
+    // Initialize Telegram WebApp first
+    initTelegram();
+    
+    // Notify Telegram that app is ready
     if (tg && tg.ready && typeof tg.ready === 'function') {
         tg.ready();
     }
-    
+
     // Initialize user
     initUser();
 
