@@ -113,6 +113,19 @@
                 title.textContent = 'Оплата успешна!';
                 message.textContent = 'Средства зачислены на ваш счёт';
             }
+            
+            // Если Telegram WebApp - уведомляем об успешной оплате
+            if (tg && tg.ready) {
+                tg.ready();
+                // Отправляем данные в родительское приложение
+                if (tg.WebView && tg.WebView.postMessage) {
+                    tg.WebView.postMessage({
+                        type: 'payment_success',
+                        paymentId: paymentId,
+                        paymentType: type
+                    });
+                }
+            }
         } else if (status === 'pending') {
             successIcon.textContent = '⏳';
             if (type === 'subscription') {

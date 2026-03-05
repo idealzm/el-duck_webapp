@@ -25,23 +25,47 @@ function initTelegram() {
         console.log('Telegram WebApp not available');
         return false;
     }
-    
+
     // Expand to full height
     tg.expand();
-    
+
     // Set header color
     tg.setHeaderColor('#111111');
-    
+
     // Set background color
     tg.setBackgroundColor('#111111');
-    
+
     // Enable closing confirmation
     tg.enableClosingConfirmation();
-    
+
+    // Listen for visibility changes (when user returns from payment)
+    tg.onEvent('visibilityChanged', function(isVisible) {
+        if (isVisible && currentUser) {
+            console.log('WebApp became visible, refreshing balance...');
+            // Refresh balance when user returns to the app
+            setTimeout(() => {
+                loadUserBalance();
+                showToast('Баланс обновлён', 'success');
+            }, 500);
+        }
+    });
+
+    // Listen for messages from payment success page
+    tg.onEvent('messageReceived', function(eventData) {
+        console.log('Message received:', eventData);
+        if (eventData.type === 'payment_success') {
+            console.log('Payment success received, refreshing balance...');
+            setTimeout(() => {
+                loadUserBalance();
+                showToast('Баланс обновлён', 'success');
+            }, 500);
+        }
+    });
+
     console.log('Telegram WebApp initialized');
     console.log('Platform:', tg.platform);
     console.log('version:', tg.version);
-    
+
     return true;
 }
 
