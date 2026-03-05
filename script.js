@@ -2,7 +2,7 @@
 const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
 // API Configuration
-const API_BASE_URL = 'http://dev.el-duck.ru:3000/api'; // Backend API URL
+const API_BASE_URL = '/api'; // PHP Backend API URL
 const YOOKASSA_SHOP_ID = '1293384';
 
 // Store instructions data
