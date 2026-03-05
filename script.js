@@ -11,6 +11,12 @@ let instructionsData = {};
 // User state
 let currentUser = null;
 
+// Payment polling state
+let activePaymentId = null;
+let paymentCheckInterval = null;
+let paymentCheckTimeout = null;
+let balanceBeforePayment = null;
+
 // Escape HTML to prevent XSS
 function escapeHtml(text) {
     if (!text) return '';
@@ -200,6 +206,107 @@ function checkPaymentReturn() {
         if (window.history && window.history.replaceState) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
+    }
+}
+
+// Start payment status polling
+function startPaymentCheck(paymentId, type) {
+    // Stop any existing check
+    stopPaymentCheck();
+    
+    activePaymentId = paymentId;
+    
+    // Get balance before payment for comparison
+    balanceBeforePayment = null;
+    
+    console.log('Starting payment check for:', paymentId, type);
+    showToast('⏳ Ожидание подтверждения оплаты...', 'info');
+    
+    // First, get current balance
+    getBalance().then(balance => {
+        balanceBeforePayment = balance;
+        console.log('Balance before payment:', balanceBeforePayment);
+        
+        // Check immediately after 2 seconds
+        paymentCheckTimeout = setTimeout(() => {
+            checkPaymentStatus(paymentId, type);
+            
+            // Then check every 3 seconds for up to 2 minutes
+            paymentCheckInterval = setInterval(() => {
+                checkPaymentStatus(paymentId, type);
+            }, 3000);
+            
+            // Stop after 2 minutes
+            setTimeout(() => {
+                stopPaymentCheck();
+            }, 120000);
+        }, 2000);
+    });
+}
+
+// Stop payment status polling
+function stopPaymentCheck() {
+    if (paymentCheckTimeout) {
+        clearTimeout(paymentCheckTimeout);
+        paymentCheckTimeout = null;
+    }
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+        paymentCheckInterval = null;
+    }
+    activePaymentId = null;
+    balanceBeforePayment = null;
+}
+
+// Get current balance
+async function getBalance() {
+    if (!currentUser) return 0;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        if (response.ok) {
+            const data = await response.json();
+            return parseFloat(data.balance || 0);
+        }
+    } catch (error) {
+        console.error('Get balance error:', error);
+    }
+    return 0;
+}
+
+// Check payment status
+async function checkPaymentStatus(paymentId, type) {
+    if (!paymentId || !currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            const currentBalance = parseFloat(data.balance || 0);
+            
+            // Check if subscription is now active or balance increased
+            if (type === 'subscription') {
+                if (data.subscriptionActive) {
+                    stopPaymentCheck();
+                    console.log('Subscription activated!');
+                    showToast('✅ Подписка активирована!', 'success');
+                    loadUserBalance();
+                    return;
+                }
+            } else {
+                // For balance top-up, check if balance increased
+                if (balanceBeforePayment !== null && currentBalance > balanceBeforePayment) {
+                    stopPaymentCheck();
+                    console.log('Payment confirmed! Balance:', balanceBeforePayment, '->', currentBalance);
+                    showToast('✅ Оплата подтверждена! Баланс обновлён', 'success');
+                    loadUserBalance();
+                    return;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Payment status check error:', error);
     }
 }
 
@@ -427,6 +534,12 @@ function createSubscriptionPayment(plan, price) {
                 // В браузере - открываем в новой вкладке
                 window.open(data.confirmation_url, '_blank');
             }
+            
+            // Запускаем проверку статуса платежа
+            if (data.payment_id) {
+                startPaymentCheck(data.payment_id, 'subscription');
+            }
+            
             showToast('Переход к оплате...', 'success');
             closeSubscriptionModal();
         } else {
@@ -547,6 +660,11 @@ async function createPayment(amount) {
                 } else {
                     // В браузере - открываем в новой вкладке
                     window.open(data.confirmation_url, '_blank');
+                }
+                
+                // Запускаем проверку статуса платежа
+                if (data.payment_id) {
+                    startPaymentCheck(data.payment_id, 'balance');
                 }
 
                 showToast('Переход к оплате...', 'success');
