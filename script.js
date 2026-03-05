@@ -375,10 +375,9 @@ function createSubscriptionPayment(plan, price) {
         if (data.confirmation_url) {
             console.log('Opening subscription URL:', data.confirmation_url);
 
-            // Открываем ссылку внутри Telegram WebApp без подтверждения
+            // Открываем ссылку внутри Telegram
             if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                // Используем try_open_link для открытия без диалога подтверждения
-                tg.openLink(data.confirmation_url, { try_instant_view: false });
+                tg.openLink(data.confirmation_url);
             } else {
                 // В браузере - открываем в новой вкладке
                 window.open(data.confirmation_url, '_blank');
@@ -497,9 +496,9 @@ async function createPayment(amount) {
             if (data.confirmation_url) {
                 console.log('Opening payment URL:', data.confirmation_url);
 
-                // Открываем ссылку внутри Telegram WebApp без подтверждения
+                // Открываем ссылку внутри Telegram
                 if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                    tg.openLink(data.confirmation_url, { try_instant_view: false });
+                    tg.openLink(data.confirmation_url);
                 } else {
                     // В браузере - открываем в новой вкладке
                     window.open(data.confirmation_url, '_blank');
