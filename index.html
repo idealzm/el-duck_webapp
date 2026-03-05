@@ -26,7 +26,8 @@
             <!-- Profile Section -->
             <section id="profile-section" class="section">
                 <div class="profile-header">
-                    <div class="profile-avatar">
+                    <div class="profile-avatar" id="profileAvatar">
+                        <img id="profileAvatarImg" src="" alt="" style="display: none;" />
                         <span id="profileAvatarText">U</span>
                     </div>
                     <div class="profile-info">
@@ -194,7 +195,7 @@
                             Выбрать
                         </button>
                     </div>
-                    
+
                     <div class="plan-card featured" data-plan="full">
                         <div class="plan-badge">Популярный</div>
                         <div class="plan-header">
@@ -216,8 +217,21 @@
                         </button>
                     </div>
                 </div>
+                <div class="payment-method">
+                    <p class="payment-title">💳 Способ оплаты:</p>
+                    <div class="payment-methods">
+                        <button class="payment-method-btn active" data-method="yookassa">
+                            💳 YooKassa
+                        </button>
+                        <button class="payment-method-btn" data-method="balance">
+                            💰 С баланса
+                        </button>
+                    </div>
+                    <p class="balance-info" id="balanceInfo" style="display: none;">
+                        Ваш баланс: <span id="currentBalance">0.00</span> ₽
+                    </p>
+                </div>
                 <div class="payment-info">
-                    <p>💳 Оплата через YooKassa</p>
                     <p class="payment-note">Списание каждые 30 дней</p>
                 </div>
             </div>

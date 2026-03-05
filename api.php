@@ -96,6 +96,9 @@ switch ($action) {
     case 'subscription/create':
         handleSubscriptionCreate($db, $YOOKASSA_SHOP_ID, $YOOKASSA_SECRET_KEY);
         break;
+    case 'subscription/pay':
+        handleSubscriptionPay($db);
+        break;
     case 'subscription/success':
         handleSubscriptionSuccess($db, $YOOKASSA_SHOP_ID, $YOOKASSA_SECRET_KEY);
         break;
@@ -248,46 +251,117 @@ function handleSubscriptionSuccess($db, $shopId, $secretKey) {
     }
     
     if ($payment['status'] === 'succeeded') {
-        echo json_encode(['success' => true, 'message' => 'Subscription already active']);
-        return;
+        header('Location: /payment-success.html?paymentId=' . $paymentId . '&status=success&type=subscription');
+        exit();
     }
-    
+
     $authString = base64_encode("{$shopId}:{$secretKey}");
-    
+
     $ch = curl_init("https://api.yookassa.ru/v3/payments/{$payment['yookassa_payment_id']}");
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
         'Authorization: Basic ' . $authString
     ]);
-    
+
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
+
     $paymentData = json_decode($response, true);
-    
+
     if ($paymentData['status'] === 'succeeded') {
         $subscriptionEnd = date('Y-m-d H:i:s', strtotime('+30 days'));
-        
+
         $db->exec('BEGIN TRANSACTION');
-        
+
         $stmt = $db->prepare('UPDATE payments SET status = :status, updated_at = CURRENT_TIMESTAMP WHERE id = :id');
         $stmt->bindValue(':status', 'succeeded', SQLITE3_TEXT);
         $stmt->bindValue(':id', $paymentId, SQLITE3_TEXT);
         $stmt->execute();
-        
+
         $stmt = $db->prepare('UPDATE users SET subscription_active = 1, subscription_plan = :plan, subscription_end = :end, updated_at = CURRENT_TIMESTAMP WHERE id = :user_id');
         $stmt->bindValue(':plan', $payment['subscription_plan'], SQLITE3_TEXT);
         $stmt->bindValue(':end', $subscriptionEnd, SQLITE3_TEXT);
         $stmt->bindValue(':user_id', $payment['user_id'], SQLITE3_INTEGER);
         $stmt->execute();
-        
+
         $db->exec('COMMIT');
-        
-        echo json_encode(['success' => true, 'message' => 'Subscription activated', 'plan' => $payment['subscription_plan']]);
+
+        header('Location: /payment-success.html?paymentId=' . $paymentId . '&status=success&type=subscription');
+        exit();
     } else {
-        echo json_encode(['success' => false, 'message' => 'Payment not completed', 'status' => $paymentData['status']]);
+        header('Location: /payment-success.html?paymentId=' . $paymentId . '&status=pending&type=subscription');
+        exit();
     }
+}
+
+function handleSubscriptionPay($db) {
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    $userId = $input['userId'] ?? 0;
+    $plan = $input['plan'] ?? '';
+    $amount = $input['amount'] ?? 0;
+    
+    if (!$userId || !$plan || !$amount) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+    
+    $validPlans = ['telegram', 'full'];
+    if (!in_array($plan, $validPlans)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid plan type']);
+        return;
+    }
+    
+    $user = getOrCreateUser($db, $userId);
+    
+    // Проверяем баланс
+    if ($user['balance'] < $amount) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Недостаточно средств на балансе']);
+        return;
+    }
+    
+    // Списываем средства и активируем подписку
+    $subscriptionEnd = date('Y-m-d H:i:s', strtotime('+30 days'));
+    
+    $db->exec('BEGIN TRANSACTION');
+    
+    // Создаём запись о платеже
+    $paymentId = uniqid('pay_', true);
+    $stmt = $db->prepare('INSERT INTO payments (id, user_id, amount, status, description, payment_type, subscription_plan) VALUES (:id, :user_id, :amount, :status, :description, :payment_type, :subscription_plan)');
+    $stmt->bindValue(':id', $paymentId, SQLITE3_TEXT);
+    $stmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+    $stmt->bindValue(':amount', $amount, SQLITE3_FLOAT);
+    $stmt->bindValue(':status', 'succeeded', SQLITE3_TEXT);
+    $stmt->bindValue(':description', 'Подписка "' . $plan . '" (оплата с баланса)', SQLITE3_TEXT);
+    $stmt->bindValue(':payment_type', 'subscription', SQLITE3_TEXT);
+    $stmt->bindValue(':subscription_plan', $plan, SQLITE3_TEXT);
+    $stmt->execute();
+    
+    // Списываем с баланса
+    $stmt = $db->prepare('UPDATE users SET balance = balance - :amount, updated_at = CURRENT_TIMESTAMP WHERE id = :user_id');
+    $stmt->bindValue(':amount', $amount, SQLITE3_FLOAT);
+    $stmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+    $stmt->execute();
+    
+    // Активируем подписку
+    $stmt = $db->prepare('UPDATE users SET subscription_active = 1, subscription_plan = :plan, subscription_end = :end, updated_at = CURRENT_TIMESTAMP WHERE id = :user_id');
+    $stmt->bindValue(':plan', $plan, SQLITE3_TEXT);
+    $stmt->bindValue(':end', $subscriptionEnd, SQLITE3_TEXT);
+    $stmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
+    $stmt->execute();
+    
+    $db->exec('COMMIT');
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'Подписка активирована',
+        'plan' => $plan,
+        'balance' => number_format($user['balance'] - $amount, 2, '.', '')
+    ]);
 }
 
 function handlePaymentCreate($db, $shopId, $secretKey) {

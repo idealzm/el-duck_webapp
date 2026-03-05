@@ -92,25 +92,36 @@
 
     <script>
         const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-        
+
         // Get params from URL
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId');
         const status = urlParams.get('status');
-        
+        const type = urlParams.get('type'); // 'subscription' или undefined (для баланса)
+
         // Update UI based on status
         const successIcon = document.querySelector('.success-icon');
         const title = document.querySelector('h1');
         const message = document.getElementById('message');
-        
+
         if (status === 'success') {
             successIcon.textContent = '✅';
-            title.textContent = 'Оплата успешна!';
-            message.textContent = 'Средства зачислены на ваш счёт';
+            if (type === 'subscription') {
+                title.textContent = 'Подписка активирована!';
+                message.textContent = 'Ваша подписка успешно оформлена на 30 дней';
+            } else {
+                title.textContent = 'Оплата успешна!';
+                message.textContent = 'Средства зачислены на ваш счёт';
+            }
         } else if (status === 'pending') {
             successIcon.textContent = '⏳';
-            title.textContent = 'Обработка платежа';
-            message.textContent = 'Платёж ещё обрабатывается. Пожалуйста, подождите.';
+            if (type === 'subscription') {
+                title.textContent = 'Обработка платежа';
+                message.textContent = 'Подписка будет активирована после подтверждения платежа.';
+            } else {
+                title.textContent = 'Обработка платежа';
+                message.textContent = 'Платёж ещё обрабатывается. Пожалуйста, подождите.';
+            }
             // Auto-reload after 5 seconds
             setTimeout(() => {
                 window.location.reload();

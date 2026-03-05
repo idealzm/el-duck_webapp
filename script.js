@@ -28,9 +28,14 @@ if (tg && tg.setHeaderColor && typeof tg.setHeaderColor === 'function') {
     tg.setHeaderColor('#0a0a0f');
 }
 
+// Готовность Telegram WebApp
+function isTelegramReady() {
+    return tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+}
+
 // Get user data from Telegram
 function initUser() {
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    if (isTelegramReady()) {
         const tgUser = tg.initDataUnsafe.user;
         currentUser = {
             id: tgUser.id,
@@ -39,14 +44,17 @@ function initUser() {
             username: tgUser.username || '',
             avatarUrl: tgUser.photo_url || null
         };
-        
+
         // Update profile UI
         updateProfileUI();
-        
+
         // Load balance from backend
         loadUserBalance();
+        
+        console.log('Telegram user initialized:', currentUser);
     } else {
         // Demo mode - no Telegram
+        console.log('Telegram not ready, using demo mode');
         currentUser = {
             id: 123456,
             firstName: 'Демо',
@@ -62,22 +70,32 @@ function initUser() {
 // Update profile UI with user data
 function updateProfileUI() {
     if (!currentUser) return;
-    
+
     const profileName = document.getElementById('profileName');
     const profileUsername = document.getElementById('profileUsername');
-    const profileAvatar = document.getElementById('profileAvatarText');
-    
+    const profileAvatar = document.getElementById('profileAvatar');
+    const profileAvatarImg = document.getElementById('profileAvatarImg');
+    const profileAvatarText = document.getElementById('profileAvatarText');
+
     if (profileName) {
         profileName.textContent = `${currentUser.firstName} ${currentUser.lastName}`.trim() || currentUser.firstName;
     }
-    
+
     if (profileUsername) {
         profileUsername.textContent = currentUser.username ? `@${currentUser.username}` : 'Без username';
     }
-    
-    if (profileAvatar) {
-        const initial = (currentUser.firstName || 'U').charAt(0).toUpperCase();
-        profileAvatar.textContent = initial;
+
+    if (profileAvatar && profileAvatarImg && profileAvatarText) {
+        if (currentUser.avatarUrl) {
+            profileAvatarImg.src = currentUser.avatarUrl;
+            profileAvatarImg.style.display = 'block';
+            profileAvatarText.style.display = 'none';
+        } else {
+            profileAvatarImg.style.display = 'none';
+            profileAvatarText.style.display = 'block';
+            const initial = (currentUser.firstName || 'U').charAt(0).toUpperCase();
+            profileAvatarText.textContent = initial;
+        }
     }
 }
 
@@ -242,6 +260,7 @@ function closeTopUpModal() {
 
 // Subscription Modal
 let selectedPlan = null;
+let selectedPaymentMethod = 'yookassa'; // 'yookassa' или 'balance'
 
 function openSubscriptionModal() {
     const modal = document.getElementById('subscriptionModal');
@@ -249,10 +268,32 @@ function openSubscriptionModal() {
         modal.classList.add('active');
         document.body.classList.add('modal-open');
         selectedPlan = null;
+        
+        // Загружаем баланс при открытии модального окна
+        loadBalanceForSubscription();
     }
-    
+
     if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
         tg.HapticFeedback.impactOccurred('light');
+    }
+}
+
+// Загрузка баланса для отображения в модальном окне
+async function loadBalanceForSubscription() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        if (response.ok) {
+            const data = await response.json();
+            const balanceInfo = document.getElementById('balanceInfo');
+            const currentBalance = document.getElementById('currentBalance');
+            if (balanceInfo && currentBalance) {
+                currentBalance.textContent = parseFloat(data.balance || 0).toFixed(2);
+            }
+        }
+    } catch (error) {
+        console.error('Load balance error:', error);
     }
 }
 
@@ -279,13 +320,20 @@ function createSubscriptionPayment(plan, price) {
         showToast('Ошибка авторизации', 'error');
         return;
     }
-    
+
     const payBtn = document.querySelector(`.btn-plan-select[data-plan="${plan}"]`);
     if (!payBtn) return;
-    
+
+    // Если выбран баланс
+    if (selectedPaymentMethod === 'balance') {
+        payBalanceSubscription(plan, parseFloat(price), payBtn);
+        return;
+    }
+
+    // Оплата через YooKassa
     payBtn.disabled = true;
     payBtn.classList.add('loading');
-    
+
     fetch(`${API_BASE_URL}/subscription/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -300,16 +348,14 @@ function createSubscriptionPayment(plan, price) {
     .then(data => {
         if (data.confirmation_url) {
             console.log('Opening subscription URL:', data.confirmation_url);
-            
+
+            // Открываем ссылку внутри Telegram WebApp без подтверждения
             if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                console.log('Using tg.openLink');
-                tg.openLink(data.confirmation_url);
+                // Используем try_open_link для открытия без диалога подтверждения
+                tg.openLink(data.confirmation_url, { try_instant_view: false });
             } else {
-                console.log('Using window.location.href');
-                const newWindow = window.open(data.confirmation_url, '_blank');
-                if (!newWindow) {
-                    window.location.href = data.confirmation_url;
-                }
+                // В браузере - открываем в новой вкладке
+                window.open(data.confirmation_url, '_blank');
             }
             showToast('Переход к оплате...', 'success');
             closeSubscriptionModal();
@@ -321,6 +367,43 @@ function createSubscriptionPayment(plan, price) {
     })
     .catch(error => {
         console.error('Subscription payment error:', error);
+        showToast('Ошибка соединения с сервером', 'error');
+        payBtn.disabled = false;
+    })
+    .finally(() => {
+        payBtn.classList.remove('loading');
+    });
+}
+
+// Оплата подписки с баланса
+function payBalanceSubscription(plan, price, payBtn) {
+    if (!payBtn) return;
+    
+    payBtn.disabled = true;
+    payBtn.classList.add('loading');
+
+    fetch(`${API_BASE_URL}/subscription/pay`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            userId: currentUser.id,
+            plan: plan,
+            amount: price
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Подписка активирована!', 'success');
+            closeSubscriptionModal();
+            loadUserBalance(); // Обновить баланс в профиле
+        } else {
+            showToast(data.error || 'Ошибка оплаты', 'error');
+            payBtn.disabled = false;
+        }
+    })
+    .catch(error => {
+        console.error('Balance subscription error:', error);
         showToast('Ошибка соединения с сервером', 'error');
         payBtn.disabled = false;
     })
@@ -387,19 +470,13 @@ async function createPayment(amount) {
 
             if (data.confirmation_url) {
                 console.log('Opening payment URL:', data.confirmation_url);
-                
-                // Open YooKassa payment page
+
+                // Открываем ссылку внутри Telegram WebApp без подтверждения
                 if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                    console.log('Using tg.openLink');
-                    tg.openLink(data.confirmation_url);
+                    tg.openLink(data.confirmation_url, { try_instant_view: false });
                 } else {
-                    console.log('Using window.location.href');
-                    // Try window.open first
-                    const newWindow = window.open(data.confirmation_url, '_blank');
-                    // If blocked, use location.href
-                    if (!newWindow) {
-                        window.location.href = data.confirmation_url;
-                    }
+                    // В браузере - открываем в новой вкладке
+                    window.open(data.confirmation_url, '_blank');
                 }
 
                 showToast('Переход к оплате...', 'success');
@@ -855,9 +932,14 @@ document.addEventListener('keydown', (e) => {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
+    // Telegram WebApp ready
+    if (tg && tg.ready && typeof tg.ready === 'function') {
+        tg.ready();
+    }
+    
     // Initialize user
     initUser();
-    
+
     // Load cards
     loadCards();
     
@@ -897,6 +979,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const plan = btn.dataset.plan;
             const price = btn.dataset.price;
             createSubscriptionPayment(plan, price);
+        });
+    });
+
+    // Payment method toggle
+    document.querySelectorAll('.payment-method-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+            
+            // Переключаем активный класс
+            document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            
+            // Обновляем выбранный метод
+            selectedPaymentMethod = btn.dataset.method;
+            
+            // Показываем/скрываем информацию о балансе
+            const balanceInfo = document.getElementById('balanceInfo');
+            if (balanceInfo) {
+                if (selectedPaymentMethod === 'balance') {
+                    balanceInfo.style.display = 'block';
+                    loadBalanceForSubscription(); // Обновляем баланс
+                } else {
+                    balanceInfo.style.display = 'none';
+                }
+            }
         });
     });
 
