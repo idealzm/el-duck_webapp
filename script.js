@@ -220,28 +220,61 @@ function startPaymentCheck(paymentId, type) {
     balanceBeforePayment = null;
     
     console.log('Starting payment check for:', paymentId, type);
-    showToast('⏳ Ожидание подтверждения оплаты...', 'info');
+    
+    // Show persistent notification
+    showPaymentWaiting(type);
     
     // First, get current balance
     getBalance().then(balance => {
         balanceBeforePayment = balance;
         console.log('Balance before payment:', balanceBeforePayment);
         
-        // Check immediately after 2 seconds
+        // Check immediately after 3 seconds
         paymentCheckTimeout = setTimeout(() => {
             checkPaymentStatus(paymentId, type);
             
-            // Then check every 3 seconds for up to 2 minutes
+            // Then check every 3 seconds for up to 3 minutes
             paymentCheckInterval = setInterval(() => {
                 checkPaymentStatus(paymentId, type);
             }, 3000);
             
-            // Stop after 2 minutes
+            // Stop after 3 minutes
             setTimeout(() => {
                 stopPaymentCheck();
-            }, 120000);
-        }, 2000);
+                showToast('⚠️ Превышено время ожидания. Если средства были списаны, они поступят в течение нескольких минут.', 'error');
+            }, 180000);
+        }, 3000);
     });
+}
+
+// Show persistent payment waiting notification
+function showPaymentWaiting(type) {
+    // Remove existing toast
+    const existingToast = document.querySelector('.toast.payment-wait');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast payment-wait';
+    toast.innerHTML = `
+        <span class="toast-icon">⏳</span>
+        <span>${type === 'subscription' ? 'Ожидание активации подписки...' : 'Ожидание подтверждения платежа...'}</span>
+    `;
+    document.body.appendChild(toast);
+    
+    toast.offsetHeight;
+    toast.classList.add('show');
+    
+    // Auto-hide after 10 seconds, but polling continues
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+            }
+        }, 300);
+    }, 10000);
 }
 
 // Stop payment status polling
@@ -304,9 +337,20 @@ async function checkPaymentStatus(paymentId, type) {
                     return;
                 }
             }
+            
+            // Log that check is ongoing
+            console.log('Payment check ongoing...', paymentId);
         }
     } catch (error) {
         console.error('Payment status check error:', error);
+    }
+}
+
+// Manual payment status check (for button)
+async function manualPaymentCheck() {
+    if (activePaymentId) {
+        showToast('🔄 Проверка статуса...', 'info');
+        await checkPaymentStatus(activePaymentId, 'balance');
     }
 }
 
@@ -438,7 +482,6 @@ function closeTopUpModal() {
 
 // Subscription Modal
 let selectedPlan = null;
-let selectedPaymentMethod = 'yookassa'; // 'yookassa' или 'balance'
 
 function openSubscriptionModal() {
     const modal = document.getElementById('subscriptionModal');
@@ -446,7 +489,7 @@ function openSubscriptionModal() {
         modal.classList.add('active');
         document.body.classList.add('modal-open');
         selectedPlan = null;
-        
+
         // Загружаем баланс при открытии модального окна
         loadBalanceForSubscription();
     }
@@ -459,7 +502,7 @@ function openSubscriptionModal() {
 // Загрузка баланса для отображения в модальном окне
 async function loadBalanceForSubscription() {
     if (!currentUser) return;
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
         if (response.ok) {
@@ -502,60 +545,8 @@ function createSubscriptionPayment(plan, price) {
     const payBtn = document.querySelector(`.btn-plan-select[data-plan="${plan}"]`);
     if (!payBtn) return;
 
-    // Если выбран баланс
-    if (selectedPaymentMethod === 'balance') {
-        payBalanceSubscription(plan, parseFloat(price), payBtn);
-        return;
-    }
-
-    // Оплата через YooKassa
-    payBtn.disabled = true;
-    payBtn.classList.add('loading');
-
-    fetch(`${API_BASE_URL}/subscription/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            userId: currentUser.id,
-            plan: plan,
-            amount: parseFloat(price),
-            description: `Подписка "${plan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ'}"`
-        })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.confirmation_url) {
-            console.log('Opening subscription URL:', data.confirmation_url);
-
-            // Открываем ссылку внутри Telegram
-            if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                tg.openLink(data.confirmation_url);
-            } else {
-                // В браузере - открываем в новой вкладке
-                window.open(data.confirmation_url, '_blank');
-            }
-            
-            // Запускаем проверку статуса платежа
-            if (data.payment_id) {
-                startPaymentCheck(data.payment_id, 'subscription');
-            }
-            
-            showToast('Переход к оплате...', 'success');
-            closeSubscriptionModal();
-        } else {
-            console.error('No confirmation_url in response:', data);
-            showToast(data.error || 'Ошибка создания платежа', 'error');
-            payBtn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Subscription payment error:', error);
-        showToast('Ошибка соединения с сервером', 'error');
-        payBtn.disabled = false;
-    })
-    .finally(() => {
-        payBtn.classList.remove('loading');
-    });
+    // Оплата с баланса
+    payBalanceSubscription(plan, parseFloat(price), payBtn);
 }
 
 // Оплата подписки с баланса
@@ -626,9 +617,19 @@ function getSelectedAmount() {
 // Create YooKassa payment
 async function createPayment(amount) {
     const payBtn = document.getElementById('payBtn');
-    
-    if (!payBtn || amount < 50) {
+
+    if (!payBtn) {
+        return;
+    }
+
+    // Проверка минимальной и максимальной суммы
+    if (amount < 50) {
         showToast('Минимальная сумма: 50 ₽', 'error');
+        return;
+    }
+
+    if (amount > 500) {
+        showToast('Максимальная сумма: 500 ₽', 'error');
         return;
     }
     
@@ -730,7 +731,7 @@ async function loadCards() {
         
         if (currentUser && currentUser.id) {
             const response = await fetch(`${API_BASE_URL}/cards?userId=${currentUser.id}`);
-            
+
             if (response.ok) {
                 data = await response.json();
             } else {
@@ -749,6 +750,22 @@ async function loadCards() {
             return;
         }
 
+        // Проверка подписки для показа плашки
+        const hasSubscription = data.hasFullAccess || data.hasTelegramAccess;
+        
+        // Если нет подписки вообще - показываем плашку
+        if (!hasSubscription) {
+            const noSubscriptionBanner = document.createElement('div');
+            noSubscriptionBanner.className = 'no-subscription-banner';
+            noSubscriptionBanner.innerHTML = `
+                <div class="banner-icon">🔒</div>
+                <div class="banner-title">Нет активной подписки</div>
+                <div class="banner-text">Оформите подписку для доступа к VPN и Telegram Proxy</div>
+                <button class="btn btn-primary" onclick="openSubscriptionModal()">Оформить подписку</button>
+            `;
+            container.appendChild(noSubscriptionBanner);
+        }
+
         const sortedCards = [...data.cards].sort((a, b) => {
             const aHasNew = a.title && a.title.includes('NEW!');
             const bHasNew = b.title && b.title.includes('NEW!');
@@ -759,6 +776,14 @@ async function loadCards() {
         });
 
         sortedCards.forEach(card => {
+            // Фильтрация карточек по подписке
+            if (card.id === 'FlowStateWG' && !data.hasFullAccess) {
+                return; // Пропускаем AmneziaWG без full подписки
+            }
+            if (card.id === 'FlowStateProxy' && !data.hasTelegramAccess) {
+                return; // Пропускаем Telegram Proxy без telegram/full подписки
+            }
+
             if (card.instruction) {
                 instructionsData[card.id] = card.instruction;
             }
@@ -1173,33 +1198,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const plan = btn.dataset.plan;
             const price = btn.dataset.price;
             createSubscriptionPayment(plan, price);
-        });
-    });
-
-    // Payment method toggle
-    document.querySelectorAll('.payment-method-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-            
-            // Переключаем активный класс
-            document.querySelectorAll('.payment-method-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Обновляем выбранный метод
-            selectedPaymentMethod = btn.dataset.method;
-            
-            // Показываем/скрываем информацию о балансе
-            const balanceInfo = document.getElementById('balanceInfo');
-            if (balanceInfo) {
-                if (selectedPaymentMethod === 'balance') {
-                    balanceInfo.style.display = 'block';
-                    loadBalanceForSubscription(); // Обновляем баланс
-                } else {
-                    balanceInfo.style.display = 'none';
-                }
-            }
         });
     });
 

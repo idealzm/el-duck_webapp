@@ -143,18 +143,17 @@
                     <button class="amount-preset" data-amount="100">100 ₽</button>
                     <button class="amount-preset" data-amount="300">300 ₽</button>
                     <button class="amount-preset" data-amount="500">500 ₽</button>
-                    <button class="amount-preset" data-amount="1000">1000 ₽</button>
                 </div>
                 <div class="amount-custom">
                     <label for="customAmount">Другая сумма</label>
                     <div class="amount-input-wrapper">
-                        <input type="number" id="customAmount" placeholder="Мин. 50 ₽" min="50" max="50000" />
+                        <input type="number" id="customAmount" placeholder="Мин. 50 ₽" min="50" max="500" />
                         <span class="currency-symbol">₽</span>
                     </div>
                 </div>
                 <div class="payment-info">
                     <p>💳 Оплата через YooKassa</p>
-                    <p class="payment-note">Минимальная сумма: 50 ₽</p>
+                    <p class="payment-note">Минимальная сумма: 50 ₽ | Максимальная: 500 ₽</p>
                 </div>
                 <button id="payBtn" class="btn-pay">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -192,7 +191,7 @@
                             <li>❌ Не включает VPN</li>
                         </ul>
                         <button class="btn-plan-select" data-plan="telegram" data-price="99">
-                            Выбрать
+                            Оплатить с баланса
                         </button>
                     </div>
 
@@ -213,23 +212,13 @@
                             <li>✅ До 3 устройств</li>
                         </ul>
                         <button class="btn-plan-select" data-plan="full" data-price="299">
-                            Выбрать
+                            Оплатить с баланса
                         </button>
                     </div>
                 </div>
-                <div class="payment-method">
-                    <p class="payment-title">💳 Способ оплаты:</p>
-                    <div class="payment-methods">
-                        <button class="payment-method-btn active" data-method="yookassa">
-                            💳 YooKassa
-                        </button>
-                        <button class="payment-method-btn" data-method="balance">
-                            💰 С баланса
-                        </button>
-                    </div>
-                    <p class="balance-info" id="balanceInfo" style="display: none;">
-                        Ваш баланс: <span id="currentBalance">0.00</span> ₽
-                    </p>
+                <div class="balance-info" id="balanceInfo">
+                    <p class="balance-title">💰 Ваш баланс: <span id="currentBalance">0.00</span> ₽</p>
+                    <p class="balance-note">Оплата подписки производится с вашего баланса</p>
                 </div>
                 <div class="payment-info">
                     <p class="payment-note">Списание каждые 30 дней</p>

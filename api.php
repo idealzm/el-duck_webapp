@@ -366,14 +366,26 @@ function handleSubscriptionPay($db) {
 
 function handlePaymentCreate($db, $shopId, $secretKey) {
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     $userId = $input['userId'] ?? 0;
     $amount = $input['amount'] ?? 0;
     $description = $input['description'] ?? 'Пополнение баланса';
-    
-    if (!$userId || !$amount || $amount < 50) {
+
+    if (!$userId || !$amount) {
         http_response_code(400);
-        echo json_encode(['error' => 'Invalid amount (min 50)']);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+
+    if ($amount < 50) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Минимальная сумма: 50 ₽']);
+        return;
+    }
+
+    if ($amount > 500) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Максимальная сумма: 500 ₽']);
         return;
     }
     
@@ -576,34 +588,38 @@ function handleProfile($db) {
 
 function handleCards($db) {
     $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
-    
+
     if (!$userId) {
         http_response_code(400);
         echo json_encode(['error' => 'userId required']);
         return;
     }
-    
+
     $user = getOrCreateUser($db, $userId);
     $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
-    
+    $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
+
     $dataPath = __DIR__ . '/data.json';
     if (!file_exists($dataPath)) {
         http_response_code(500);
         echo json_encode(['error' => 'Failed to load cards']);
         return;
     }
-    
+
     $jsonData = json_decode(file_get_contents($dataPath), true);
-    
-    $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasFullAccess) {
-        if ($card['id'] === 'FlowStateProxy') return true;
+
+    $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
+        // Telegram Proxy доступен с telegram или full подпиской
+        if ($card['id'] === 'FlowStateProxy') return $hasTelegramAccess;
+        // AmneziaWG доступен только с full подпиской
         if ($card['id'] === 'FlowStateWG') return $hasFullAccess;
         return true;
     });
-    
+
     echo json_encode([
         'cards' => array_values($filteredCards),
         'hasFullAccess' => $hasFullAccess,
+        'hasTelegramAccess' => $hasTelegramAccess,
         'subscriptionPlan' => $user['subscription_plan']
     ]);
 }

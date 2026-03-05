@@ -93,6 +93,39 @@ body {
     position: relative;
 }
 
+/* No Subscription Banner */
+.no-subscription-banner {
+    background: linear-gradient(135deg, rgba(255, 71, 87, 0.1) 0%, rgba(255, 71, 87, 0.05) 100%);
+    border-radius: 12px;
+    padding: 24px;
+    border: 0.5px solid rgba(255, 71, 87, 0.3);
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+.no-subscription-banner .banner-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.no-subscription-banner .banner-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.no-subscription-banner .banner-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+    line-height: 1.5;
+}
+
+.no-subscription-banner .btn {
+    width: 100%;
+}
+
 .card {
     background: var(--bg-card);
     border-radius: 12px;
@@ -931,65 +964,32 @@ body {
     margin-top: 4px;
 }
 
-/* Payment method selection */
-.payment-method {
-    background: var(--bg-secondary);
-    border-radius: 10px;
-    padding: 14px;
-    margin-bottom: 16px;
-    border: 0.5px solid var(--border);
-}
-
-.payment-title {
-    font-size: 13px;
-    color: var(--text-secondary);
-    margin: 0 0 10px 0;
-}
-
-.payment-methods {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.payment-method-btn {
-    flex: 1;
-    padding: 12px 16px;
-    border-radius: 10px;
-    background: var(--bg-card);
-    color: var(--text-primary);
-    border: 0.5px solid var(--border);
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.payment-method-btn:hover {
-    border-color: var(--accent);
-}
-
-.payment-method-btn.active {
-    background: var(--accent-gradient);
-    color: #000;
-    border-color: var(--accent);
-    font-weight: 600;
-}
-
 .balance-info {
     font-size: 14px;
     color: var(--text-secondary);
     margin: 0;
-    padding: 12px;
+    padding: 16px;
     background: var(--bg-card);
-    border-radius: 8px;
+    border-radius: 10px;
     border: 0.5px solid var(--border);
 }
 
-.balance-info #currentBalance {
+.balance-info .balance-title {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.balance-info .balance-title #currentBalance {
     color: var(--accent);
-    font-weight: 600;
-    font-size: 16px;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.balance-info .balance-note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
 }
 
 .btn-pay {
