@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // YooKassa credentials (test)
 $YOOKASSA_SHOP_ID = '1293384';
-$YOOKASSA_SECRET_KEY = 'test_RuhTK6Gu2CTA-1m_wiLd6rC9pNGfgLncVzgi_0NpaJMç';
+$YOOKASSA_SECRET_KEY = 'test_RuhTK6Gu2CTA-1m_wiLd6rC9pNGfgLncVzgi_0NpaJM';
 
 // Database path
 $dbPath = __DIR__ . '/database.db';
