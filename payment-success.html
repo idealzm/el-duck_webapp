@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Оплата успешна</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
             margin: 0;
@@ -12,7 +13,7 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #0a0a0f;
+            background: #111111;
             color: #ffffff;
             min-height: 100vh;
             display: flex;
@@ -51,20 +52,20 @@
         }
         .btn {
             display: inline-block;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, #00d4aa 0%, #00a896 100%);
+            color: #000;
             padding: 14px 32px;
             border-radius: 12px;
             text-decoration: none;
             font-weight: 600;
             font-size: 16px;
             transition: transform 0.2s, box-shadow 0.2s;
-            border: none;
+            border: 0.5px solid #4a4a4a;
             cursor: pointer;
         }
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 25px rgba(0, 212, 170, 0.4);
         }
         .btn:active {
             transform: translateY(0);
@@ -79,14 +80,13 @@
             display: block;
         }
     </style>
-    <script src="https://telegram.org/js/telegram-web-app.js" async></script>
 </head>
 <body>
     <div class="container">
         <div class="success-icon">✅</div>
         <h1>Оплата успешна!</h1>
         <p id="message">Средства зачислены на ваш счёт</p>
-        <button class="btn" onclick="returnToApp()">Вернуться в магазин</button>
+        <button class="btn" onclick="returnToApp()">Вернуться в приложение</button>
         <p class="loading" id="loading">Перенаправление...</p>
     </div>
 
@@ -97,7 +97,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const paymentId = urlParams.get('paymentId');
         const status = urlParams.get('status');
-        const type = urlParams.get('type'); // 'subscription' или undefined (для баланса)
+        const type = urlParams.get('type');
 
         // Update UI based on status
         const successIcon = document.querySelector('.success-icon');
@@ -122,41 +122,33 @@
                 title.textContent = 'Обработка платежа';
                 message.textContent = 'Платёж ещё обрабатывается. Пожалуйста, подождите.';
             }
-            // Auto-reload after 5 seconds
-            setTimeout(() => {
-                window.location.reload();
-            }, 5000);
         } else {
             successIcon.textContent = '⚠️';
             title.textContent = 'Статус уточняется';
             message.textContent = 'Если средства были списаны, они скоро поступят на счёт';
         }
-        
+
         function returnToApp() {
             const loading = document.getElementById('loading');
             if (loading) loading.classList.add('active');
-            
-            // Try to close or redirect
+
+            // Если открыто в Telegram - закрываем
             if (tg && tg.close && typeof tg.close === 'function') {
-                tg.close();
+                setTimeout(() => {
+                    tg.close();
+                }, 500);
             } else {
-                // In browser - redirect to main page
+                // Если в браузере - редирект на основной сайт
                 setTimeout(() => {
                     window.location.href = '/';
                 }, 500);
             }
         }
-        
-        // Auto-redirect after 5 seconds for success
-        if (status === 'success') {
-            setTimeout(() => {
-                if (tg && tg.close) {
-                    tg.close();
-                } else {
-                    window.location.href = '/';
-                }
-            }, 5000);
-        }
+
+        // Авто-возврат через 3 секунды
+        setTimeout(() => {
+            returnToApp();
+        }, 3000);
     </script>
 </body>
 </html>

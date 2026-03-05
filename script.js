@@ -143,7 +143,7 @@ async function loadUserBalance() {
             if (devicesCount) {
                 devicesCount.textContent = `${data.devicesCount || 0}/3`;
             }
-            
+
             // Update subscription UI
             updateSubscriptionUI(data);
         } else {
@@ -155,6 +155,27 @@ async function loadUserBalance() {
         console.warn('Backend not available, using demo mode:', error);
         if (balanceValue) balanceValue.textContent = '0.00';
         updateSubscriptionUI({ subscriptionActive: false, subscriptionPlan: null, subscriptionEnd: null });
+    }
+}
+
+// Check if we returned after payment
+function checkPaymentReturn() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentId = urlParams.get('paymentId');
+    const status = urlParams.get('status');
+
+    if (paymentId && status === 'success') {
+        console.log('Returned after payment, refreshing balance...');
+        // Refresh balance after return
+        setTimeout(() => {
+            loadUserBalance();
+            showToast('Баланс обновлён', 'success');
+        }, 500);
+
+        // Clean URL
+        if (window.history && window.history.replaceState) {
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
     }
 }
 
@@ -970,6 +991,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load cards
     loadCards();
+    
+    // Проверяем, не вернулись ли мы после оплаты
+    checkPaymentReturn();
     
     // Navigation handlers
     document.querySelectorAll('.nav-item').forEach(item => {
