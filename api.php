@@ -804,6 +804,7 @@ function handleAdminAuth($config) {
 
 function verifyTelegramAuth($data) {
     if (!isset($data['hash'])) {
+        error_log('Telegram Auth: No hash provided');
         return false;
     }
     
@@ -817,22 +818,32 @@ function verifyTelegramAuth($data) {
     }
     
     if (empty($botToken) || $botToken === 'YOUR_BOT_TOKEN') {
-        error_log('Telegram Bot Token not configured');
+        error_log('Telegram Auth: Bot Token not configured');
         return false;
     }
     
     $checkHash = $data['hash'];
-    unset($data['hash']);
     
+    // Prepare data for hashing (exclude hash field)
     $dataCheckArr = [];
     foreach ($data as $key => $value) {
-        $dataCheckArr[] = $key . '=' . $value;
+        if ($key !== 'hash') {
+            $dataCheckArr[] = $key . '=' . $value;
+        }
     }
     sort($dataCheckArr);
     
     $dataCheckString = implode("\n", $dataCheckArr);
+    
+    // Debug log
+    error_log('Telegram Auth Data Check String: ' . $dataCheckString);
+    error_log('Telegram Auth Received Hash: ' . $checkHash);
+    
     $secretKey = hash_hmac('sha256', $botToken, "WebAppData", true);
     $hash = bin2hex(hash_hmac('sha256', $dataCheckString, $secretKey, true));
+    
+    error_log('Telegram Auth Computed Hash: ' . $hash);
+    error_log('Telegram Auth Match: ' . ($hash === $checkHash ? 'YES' : 'NO'));
     
     return $hash === $checkHash;
 }

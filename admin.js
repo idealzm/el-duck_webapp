@@ -115,6 +115,8 @@ async function initTelegramLoginWidget() {
 
 // Telegram auth callback
 function onTelegramAuth(user) {
+    console.log('Telegram Auth User:', user);
+    
     // Send user data to backend for verification
     fetch(`${API_BASE_URL}/admin/auth`, {
         method: 'POST',
@@ -123,6 +125,7 @@ function onTelegramAuth(user) {
     })
     .then(res => res.json())
     .then(data => {
+        console.log('Auth Response:', data);
         if (data.success) {
             // Save session
             sessionStorage.setItem('adminSession', JSON.stringify({
