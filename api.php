@@ -297,38 +297,56 @@ function handleSubscriptionSuccess($db, $shopId, $secretKey) {
 
 function handleSubscriptionPay($db) {
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     $userId = $input['userId'] ?? 0;
     $plan = $input['plan'] ?? '';
     $amount = $input['amount'] ?? 0;
-    
+
     if (!$userId || !$plan || !$amount) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid parameters']);
         return;
     }
-    
+
     $validPlans = ['telegram', 'full'];
     if (!in_array($plan, $validPlans)) {
         http_response_code(400);
         echo json_encode(['error' => 'Invalid plan type']);
         return;
     }
-    
+
     $user = getOrCreateUser($db, $userId);
-    
+
     // Проверяем баланс
     if ($user['balance'] < $amount) {
         http_response_code(400);
         echo json_encode(['error' => 'Недостаточно средств на балансе']);
         return;
     }
+
+    // Проверяем текущую подписку
+    $subscriptionActive = $user['subscription_active'];
+    $subscriptionEnd = $user['subscription_end'];
     
-    // Списываем средства и активируем подписку
-    $subscriptionEnd = date('Y-m-d H:i:s', strtotime('+30 days'));
-    
+    // Если уже есть активная подписка — продлеваем на 30 дней от конца текущей
+    if ($subscriptionActive && $subscriptionEnd) {
+        $end = new DateTime($subscriptionEnd);
+        $now = new DateTime();
+        
+        if ($end > $now) {
+            // Подписка активна — продлеваем от конца текущей
+            $subscriptionEnd = $end->modify('+30 days')->format('Y-m-d H:i:s');
+        } else {
+            // Подписка истекла — новая на 30 дней от сегодня
+            $subscriptionEnd = date('Y-m-d H:i:s', strtotime('+30 days'));
+        }
+    } else {
+        // Нет активной подписки — новая на 30 дней
+        $subscriptionEnd = date('Y-m-d H:i:s', strtotime('+30 days'));
+    }
+
     $db->exec('BEGIN TRANSACTION');
-    
+
     // Создаём запись о платеже
     $paymentId = uniqid('pay_', true);
     $stmt = $db->prepare('INSERT INTO payments (id, user_id, amount, status, description, payment_type, subscription_plan) VALUES (:id, :user_id, :amount, :status, :description, :payment_type, :subscription_plan)');
@@ -340,22 +358,22 @@ function handleSubscriptionPay($db) {
     $stmt->bindValue(':payment_type', 'subscription', SQLITE3_TEXT);
     $stmt->bindValue(':subscription_plan', $plan, SQLITE3_TEXT);
     $stmt->execute();
-    
+
     // Списываем с баланса
     $stmt = $db->prepare('UPDATE users SET balance = balance - :amount, updated_at = CURRENT_TIMESTAMP WHERE id = :user_id');
     $stmt->bindValue(':amount', $amount, SQLITE3_FLOAT);
     $stmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
     $stmt->execute();
-    
+
     // Активируем подписку
     $stmt = $db->prepare('UPDATE users SET subscription_active = 1, subscription_plan = :plan, subscription_end = :end, updated_at = CURRENT_TIMESTAMP WHERE id = :user_id');
     $stmt->bindValue(':plan', $plan, SQLITE3_TEXT);
     $stmt->bindValue(':end', $subscriptionEnd, SQLITE3_TEXT);
     $stmt->bindValue(':user_id', $user['id'], SQLITE3_INTEGER);
     $stmt->execute();
-    
+
     $db->exec('COMMIT');
-    
+
     echo json_encode([
         'success' => true,
         'message' => 'Подписка активирована',

@@ -424,21 +424,26 @@ function parseMarkdown(text) {
 function switchSection(sectionName) {
     const sections = document.querySelectorAll('.section');
     const navItems = document.querySelectorAll('.nav-item');
-    
+
     sections.forEach(section => {
         section.classList.remove('active');
         if (section.id === `${sectionName}-section`) {
             section.classList.add('active');
+            
+            // Если переключились на VPN вкладку - обновляем карточки
+            if (sectionName === 'vpn') {
+                loadCards();
+            }
         }
     });
-    
+
     navItems.forEach(item => {
         item.classList.remove('active');
         if (item.dataset.section === sectionName) {
             item.classList.add('active');
         }
     });
-    
+
     // Haptic feedback
     if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
         tg.HapticFeedback.impactOccurred('light');
@@ -512,9 +517,45 @@ async function loadBalanceForSubscription() {
             if (balanceInfo && currentBalance) {
                 currentBalance.textContent = parseFloat(data.balance || 0).toFixed(2);
             }
+            
+            // Обновляем кнопки подписки с учётом текущей подписки
+            updateSubscriptionButtons(data);
         }
     } catch (error) {
         console.error('Load balance error:', error);
+    }
+}
+
+// Обновление кнопок подписки с учётом текущей
+function updateSubscriptionButtons(balanceData) {
+    const telegramBtn = document.querySelector('.btn-plan-select[data-plan="telegram"]');
+    const fullBtn = document.querySelector('.btn-plan-select[data-plan="full"]');
+    
+    if (!telegramBtn || !fullBtn) return;
+    
+    const currentPlan = balanceData.subscriptionPlan;
+    const subscriptionActive = balanceData.subscriptionActive;
+    
+    // Сбрасываем состояния
+    telegramBtn.disabled = false;
+    fullBtn.disabled = false;
+    telegramBtn.textContent = 'Оплатить с баланса';
+    fullBtn.textContent = 'Оплатить с баланса';
+    
+    // Если уже есть подписка
+    if (subscriptionActive && currentPlan) {
+        if (currentPlan === 'telegram') {
+            // Можно повысить до full
+            telegramBtn.disabled = true;
+            telegramBtn.textContent = 'У вас оформлена';
+            fullBtn.textContent = 'Повысить до Full';
+        } else if (currentPlan === 'full') {
+            // Уже максимальная
+            telegramBtn.disabled = true;
+            fullBtn.disabled = true;
+            telegramBtn.textContent = 'У вас оформлена';
+            fullBtn.textContent = 'У вас оформлена';
+        }
     }
 }
 
@@ -552,7 +593,7 @@ function createSubscriptionPayment(plan, price) {
 // Оплата подписки с баланса
 function payBalanceSubscription(plan, price, payBtn) {
     if (!payBtn) return;
-    
+
     payBtn.disabled = true;
     payBtn.classList.add('loading');
 
@@ -569,8 +610,14 @@ function payBalanceSubscription(plan, price, payBtn) {
     .then(data => {
         if (data.success) {
             showToast('Подписка активирована!', 'success');
+            
             closeSubscriptionModal();
+            
+            // Обновляем все данные
             loadUserBalance(); // Обновить баланс в профиле
+            loadCards(); // Обновить карточки (убрать плашку если есть подписка)
+            
+            console.log('Subscription updated:', data);
         } else {
             showToast(data.error || 'Ошибка оплаты', 'error');
             payBtn.disabled = false;
