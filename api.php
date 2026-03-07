@@ -82,12 +82,92 @@ function getOrCreateUser($db, $telegramId, $userData = []) {
     return $user;
 }
 
+// Admin config file path
+$adminConfigPath = __DIR__ . '/admin_config.json';
+
+// Load admin config
+function loadAdminConfig($adminConfigPath) {
+    if (file_exists($adminConfigPath)) {
+        return json_decode(file_get_contents($adminConfigPath), true) ?? [];
+    }
+    return [
+        'adminIds' => [],
+        'prices' => [
+            'telegramPrice' => 99,
+            'fullPrice' => 299,
+            'minTopUp' => 50,
+            'maxTopUp' => 500
+        ],
+        'settings' => [
+            'siteEnabled' => true,
+            'maintenanceMessage' => '',
+            'wgConfigUrl' => '',
+            'wgMsiUrl' => '',
+            'proxyServer' => '',
+            'proxyPort' => '',
+            'proxyUser' => '',
+            'proxyPass' => ''
+        ]
+    ];
+}
+
+// Save admin config
+function saveAdminConfig($adminConfigPath, $config) {
+    return file_put_contents($adminConfigPath, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+// Check if user is admin
+function isAdmin($telegramId, $config) {
+    $adminIds = $config['adminIds'] ?? [];
+    if (is_string($adminIds)) {
+        $adminIds = array_map('trim', explode(',', $adminIds));
+    }
+    return in_array((string)$telegramId, $adminIds) || in_array((int)$telegramId, $adminIds);
+}
+
 // Get request path
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $basePath = '/api';
 
 // Route handling
 $action = str_replace($basePath . '/', '', $requestUri);
+
+// Admin routes
+if (strpos($action, 'admin') === 0) {
+    $config = loadAdminConfig($adminConfigPath);
+    
+    switch ($action) {
+        case 'admin/check':
+            handleAdminCheck($config);
+            break;
+        case 'admin/users':
+            handleAdminUsers($db, $config);
+            break;
+        case 'admin/user/balance':
+            handleAdminUserBalance($db, $config);
+            break;
+        case 'admin/user/subscription':
+            handleAdminUserSubscription($db, $config);
+            break;
+        case 'admin/user/delete':
+            handleAdminUserDelete($db, $config);
+            break;
+        case 'admin/prices':
+            handleAdminPrices($adminConfigPath, $config);
+            break;
+        case 'admin/subscriptions':
+            handleAdminSubscriptions($db, $config);
+            break;
+        case 'admin/settings':
+            handleAdminSettings($adminConfigPath, $config);
+            break;
+        default:
+            http_response_code(404);
+            echo json_encode(['error' => 'Not found']);
+    }
+    $db->close();
+    exit();
+}
 
 switch ($action) {
     case 'balance':
@@ -640,6 +720,208 @@ function handleCards($db) {
         'hasTelegramAccess' => $hasTelegramAccess,
         'subscriptionPlan' => $user['subscription_plan']
     ]);
+}
+
+// Admin handlers
+function handleAdminCheck($config) {
+    $telegramId = isset($_GET['telegramId']) ? (int)$_GET['telegramId'] : 0;
+    
+    echo json_encode([
+        'isAdmin' => isAdmin($telegramId, $config)
+    ]);
+}
+
+function handleAdminUsers($db, $config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $result = $db->query('SELECT * FROM users ORDER BY created_at DESC');
+    $users = [];
+    
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $users[] = $row;
+    }
+    
+    echo json_encode(['users' => $users]);
+}
+
+function handleAdminUserBalance($db, $config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $telegramId = $input['telegramId'] ?? 0;
+    $amount = $input['amount'] ?? 0;
+    $operation = $input['operation'] ?? 'add';
+    
+    if (!$telegramId || $amount <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+    
+    $user = getOrCreateUser($db, $telegramId);
+    
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode(['error' => 'User not found']);
+        return;
+    }
+    
+    if ($operation === 'add') {
+        $stmt = $db->prepare('UPDATE users SET balance = balance + :amount, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = :telegram_id');
+        $stmt->bindValue(':amount', $amount, SQLITE3_FLOAT);
+    } else {
+        $stmt = $db->prepare('UPDATE users SET balance = balance - :amount, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = :telegram_id');
+        $stmt->bindValue(':amount', $amount, SQLITE3_FLOAT);
+    }
+    $stmt->bindValue(':telegram_id', $telegramId, SQLITE3_INTEGER);
+    $stmt->execute();
+    
+    echo json_encode(['success' => true]);
+}
+
+function handleAdminUserSubscription($db, $config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $telegramId = $input['telegramId'] ?? 0;
+    $plan = $input['plan'] ?? '';
+    $endDate = $input['endDate'] ?? null;
+    
+    if (!$telegramId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+    
+    $user = getOrCreateUser($db, $telegramId);
+    
+    if (!$user) {
+        http_response_code(404);
+        echo json_encode(['error' => 'User not found']);
+        return;
+    }
+    
+    $subscriptionActive = !empty($plan);
+    $subscriptionEnd = $endDate ? date('Y-m-d H:i:s', strtotime($endDate)) : null;
+    
+    $stmt = $db->prepare('UPDATE users SET subscription_active = :active, subscription_plan = :plan, subscription_end = :end, updated_at = CURRENT_TIMESTAMP WHERE telegram_id = :telegram_id');
+    $stmt->bindValue(':active', $subscriptionActive ? 1 : 0, SQLITE3_INTEGER);
+    $stmt->bindValue(':plan', $plan, SQLITE3_TEXT);
+    $stmt->bindValue(':end', $subscriptionEnd, SQLITE3_TEXT);
+    $stmt->bindValue(':telegram_id', $telegramId, SQLITE3_INTEGER);
+    $stmt->execute();
+    
+    echo json_encode(['success' => true]);
+}
+
+function handleAdminUserDelete($db, $config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $telegramId = $input['telegramId'] ?? 0;
+    
+    if (!$telegramId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+    
+    $stmt = $db->prepare('DELETE FROM users WHERE telegram_id = :telegram_id');
+    $stmt->bindValue(':telegram_id', $telegramId, SQLITE3_INTEGER);
+    $stmt->execute();
+    
+    echo json_encode(['success' => true]);
+}
+
+function handleAdminPrices($adminConfigPath, $config) {
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        echo json_encode($config['prices'] ?? []);
+        return;
+    }
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    $config['prices'] = array_merge($config['prices'] ?? [], $input);
+    
+    if (saveAdminConfig($adminConfigPath, $config)) {
+        echo json_encode(['success' => true]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save config']);
+    }
+}
+
+function handleAdminSubscriptions($db, $config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $result = $db->query('SELECT * FROM users WHERE subscription_active = 1 ORDER BY subscription_end DESC');
+    $subscriptions = [];
+    
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $subscriptions[] = $row;
+    }
+    
+    echo json_encode(['subscriptions' => $subscriptions]);
+}
+
+function handleAdminSettings($adminConfigPath, $config) {
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $settings = $config['settings'] ?? [];
+        $settings['adminIds'] = is_array($config['adminIds']) ? implode(', ', $config['adminIds']) : ($config['adminIds'] ?? '');
+        echo json_encode($settings);
+        return;
+    }
+    
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    // Handle adminIds separately
+    if (isset($input['adminIds'])) {
+        $adminIds = array_map('trim', explode(',', $input['adminIds']));
+        $adminIds = array_filter($adminIds, function($id) { return $id !== ''; });
+        $config['adminIds'] = $adminIds;
+        unset($input['adminIds']);
+    }
+    
+    $config['settings'] = array_merge($config['settings'] ?? [], $input);
+    
+    if (saveAdminConfig($adminConfigPath, $config)) {
+        echo json_encode(['success' => true]);
+    } else {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to save config']);
+    }
 }
 
 $db->close();

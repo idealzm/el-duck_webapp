@@ -1,0 +1,19 @@
+{
+    "adminIds": ["729705340"],
+    "prices": {
+        "telegramPrice": 99,
+        "fullPrice": 299,
+        "minTopUp": 50,
+        "maxTopUp": 500
+    },
+    "settings": {
+        "siteEnabled": true,
+        "maintenanceMessage": "Технические работы. Сайт временно недоступен.",
+        "wgConfigUrl": "https://files.devflowstate.ru/files/flowstateWG.conf",
+        "wgMsiUrl": "https://files.devflowstate.ru/files/amneziawg.msi",
+        "proxyServer": "s5.devflowstate.ru",
+        "proxyPort": "1080",
+        "proxyUser": "flowstateproxy",
+        "proxyPass": "7dd3245a5e7f264e"
+    }
+}
