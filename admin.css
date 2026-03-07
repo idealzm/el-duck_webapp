@@ -119,6 +119,18 @@ body {
     color: var(--text-muted);
 }
 
+/* Telegram Login Widget Container */
+#telegramLoginWidget {
+    display: flex;
+    justify-content: center;
+    margin: 24px 0;
+}
+
+/* Override Telegram widget styles for dark theme */
+#telegram-login-widget {
+    filter: invert(1) hue-rotate(180deg);
+}
+
 /* Admin Dashboard */
 .admin-dashboard {
     min-height: 100vh;

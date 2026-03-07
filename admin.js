@@ -1,6 +1,3 @@
-// Telegram Web App initialization
-const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-
 // API Configuration
 const API_BASE_URL = '/api';
 
@@ -12,48 +9,181 @@ let allUsers = [];
 let allSubscriptions = [];
 let settings = {};
 
-// Initialize Telegram Web App
-function initTelegram() {
-    if (!tg) {
-        console.log('Telegram WebApp not available');
-        return false;
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+    initTelegramLoginWidget();
+    checkSession();
+    
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Logout
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    // Search
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const query = document.getElementById('userSearch').value;
+        searchUsers(query);
+    });
+
+    document.getElementById('userSearch').addEventListener('input', (e) => {
+        searchUsers(e.target.value);
+    });
+
+    // User modal close
+    document.querySelector('#userModal .modal-close').addEventListener('click', closeUserModal);
+    document.getElementById('userModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeUserModal();
+    });
+
+    // Balance actions
+    document.getElementById('addBalanceBtn').addEventListener('click', () => {
+        const amount = parseFloat(document.getElementById('editBalance').value);
+        if (amount > 0 && selectedUser) {
+            updateUserBalance(selectedUser.telegram_id, amount, 'add');
+        }
+    });
+
+    document.getElementById('subtractBalanceBtn').addEventListener('click', () => {
+        const amount = parseFloat(document.getElementById('editBalance').value);
+        if (amount > 0 && selectedUser) {
+            updateUserBalance(selectedUser.telegram_id, amount, 'subtract');
+        }
+    });
+
+    // Subscription update
+    document.getElementById('updateSubscriptionBtn').addEventListener('click', () => {
+        if (selectedUser) {
+            const plan = document.getElementById('editSubscriptionPlan').value;
+            const endDate = document.getElementById('editSubscriptionEnd').value;
+            updateUserSubscription(selectedUser.telegram_id, plan, endDate);
+        }
+    });
+
+    // Delete user
+    document.getElementById('deleteUserBtn').addEventListener('click', () => {
+        if (selectedUser) {
+            deleteUser(selectedUser.telegram_id);
+        }
+    });
+
+    // Save prices
+    document.getElementById('savePricesBtn').addEventListener('click', savePrices);
+
+    // Save settings
+    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+});
+
+// Initialize Telegram Login Widget
+async function initTelegramLoginWidget() {
+    // Get bot username from API
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/bot-config`);
+        const data = await response.json();
+        const botUsername = data.botUsername || 'flowstatevpn_bot';
+        
+        // Create script element for Telegram widget
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', botUsername);
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-radius', '14');
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        script.setAttribute('data-request-access', 'write');
+        
+        const widgetContainer = document.getElementById('telegramLoginWidget');
+        widgetContainer.appendChild(script);
+    } catch (error) {
+        console.error('Error loading bot config:', error);
+        // Fallback to default bot username
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = 'https://telegram.org/js/telegram-widget.js?22';
+        script.setAttribute('data-telegram-login', 'flowstatevpn_bot');
+        script.setAttribute('data-size', 'large');
+        script.setAttribute('data-radius', '14');
+        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+        script.setAttribute('data-request-access', 'write');
+        
+        const widgetContainer = document.getElementById('telegramLoginWidget');
+        widgetContainer.appendChild(script);
     }
-
-    tg.expand();
-    tg.setHeaderColor('#1a1a1a');
-    tg.setBackgroundColor('#0f0f0f');
-
-    console.log('Telegram WebApp initialized');
-    return true;
 }
 
-// Check admin authorization
-async function checkAdminAuth() {
-    const loginScreen = document.getElementById('loginScreen');
-    const dashboard = document.getElementById('adminDashboard');
+// Telegram auth callback
+function onTelegramAuth(user) {
+    // Send user data to backend for verification
+    fetch(`${API_BASE_URL}/admin/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // Save session
+            sessionStorage.setItem('adminSession', JSON.stringify({
+                id: user.id,
+                firstName: user.first_name,
+                lastName: user.last_name,
+                username: user.username,
+                photoUrl: user.photo_url,
+                token: data.token
+            }));
+            
+            currentAdmin = {
+                id: user.id,
+                firstName: user.first_name || 'Admin',
+                lastName: user.last_name || '',
+                username: user.username || 'admin'
+            };
+            
+            showDashboard();
+        } else {
+            showError(data.error || 'Ошибка авторизации');
+        }
+    })
+    .catch(error => {
+        console.error('Auth error:', error);
+        showError('Ошибка соединения с сервером');
+    });
+}
 
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-        const tgUser = tg.initDataUnsafe.user;
-
-        try {
-            const response = await fetch(`${API_BASE_URL}/admin/check?telegramId=${tgUser.id}`);
-            const data = await response.json();
-
+// Check existing session
+function checkSession() {
+    const session = sessionStorage.getItem('adminSession');
+    if (session) {
+        const sessionData = JSON.parse(session);
+        
+        // Verify session with backend
+        fetch(`${API_BASE_URL}/admin/check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                telegramId: sessionData.id,
+                token: sessionData.token
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
             if (data.isAdmin) {
                 currentAdmin = {
-                    id: tgUser.id,
-                    firstName: tgUser.first_name || 'Admin',
-                    lastName: tgUser.last_name || '',
-                    username: tgUser.username || 'admin'
+                    id: sessionData.id,
+                    firstName: sessionData.firstName,
+                    lastName: sessionData.lastName,
+                    username: sessionData.username
                 };
                 showDashboard();
             } else {
-                showError('У вас нет прав администратора');
+                sessionStorage.removeItem('adminSession');
             }
-        } catch (error) {
-            console.error('Auth check error:', error);
-            showError('Ошибка проверки прав');
-        }
+        })
+        .catch(error => {
+            console.error('Session check error:', error);
+        });
     }
 }
 
@@ -125,7 +255,7 @@ function renderUsers(users) {
     }
 
     usersList.innerHTML = users.map(user => {
-        const avatarInitial = (user.firstName || 'U').charAt(0).toUpperCase();
+        const avatarInitial = (user.first_name || 'U').charAt(0).toUpperCase();
         const hasSubscription = user.subscription_active;
         const subscriptionText = hasSubscription
             ? (user.subscription_plan === 'telegram' ? 'Telegram' : 'Full')
@@ -232,13 +362,17 @@ function closeUserModal() {
 // Update user balance
 async function updateUserBalance(userId, amount, operation) {
     try {
+        const session = sessionStorage.getItem('adminSession');
+        const sessionData = session ? JSON.parse(session) : null;
+        
         const response = await fetch(`${API_BASE_URL}/admin/user/balance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 telegramId: userId,
                 amount: Math.abs(amount),
-                operation: operation // 'add' or 'subtract'
+                operation: operation,
+                token: sessionData?.token
             })
         });
 
@@ -260,13 +394,17 @@ async function updateUserBalance(userId, amount, operation) {
 // Update user subscription
 async function updateUserSubscription(userId, plan, endDate) {
     try {
+        const session = sessionStorage.getItem('adminSession');
+        const sessionData = session ? JSON.parse(session) : null;
+        
         const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 telegramId: userId,
                 plan: plan,
-                endDate: endDate || null
+                endDate: endDate || null,
+                token: sessionData?.token
             })
         });
 
@@ -291,10 +429,16 @@ async function deleteUser(userId) {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
 
     try {
+        const session = sessionStorage.getItem('adminSession');
+        const sessionData = session ? JSON.parse(session) : null;
+        
         const response = await fetch(`${API_BASE_URL}/admin/user/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ telegramId: userId })
+            body: JSON.stringify({ 
+                telegramId: userId,
+                token: sessionData?.token
+            })
         });
 
         const data = await response.json();
@@ -337,10 +481,13 @@ async function savePrices() {
     };
 
     try {
+        const session = sessionStorage.getItem('adminSession');
+        const sessionData = session ? JSON.parse(session) : null;
+        
         const response = await fetch(`${API_BASE_URL}/admin/prices`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(prices)
+            body: JSON.stringify({ ...prices, token: sessionData?.token })
         });
 
         const data = await response.json();
@@ -448,10 +595,13 @@ async function saveSettings() {
     };
 
     try {
+        const session = sessionStorage.getItem('adminSession');
+        const sessionData = session ? JSON.parse(session) : null;
+        
         const response = await fetch(`${API_BASE_URL}/admin/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newSettings)
+            body: JSON.stringify({ ...newSettings, token: sessionData?.token })
         });
 
         const data = await response.json();
@@ -471,6 +621,7 @@ async function saveSettings() {
 // Logout
 function logout() {
     if (confirm('Выйти из панели администратора?')) {
+        sessionStorage.removeItem('adminSession');
         currentAdmin = null;
         document.getElementById('adminDashboard').style.display = 'none';
         document.getElementById('loginScreen').style.display = 'flex';
@@ -506,85 +657,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    initTelegram();
-
-    // Tab switching
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-    });
-
-    // Login button
-    document.getElementById('telegramLoginBtn').addEventListener('click', () => {
-        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            checkAdminAuth();
-        } else {
-            showError('Пожалуйста, откройте через Telegram');
-        }
-    });
-
-    // Logout
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-
-    // Search
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        const query = document.getElementById('userSearch').value;
-        searchUsers(query);
-    });
-
-    document.getElementById('userSearch').addEventListener('input', (e) => {
-        searchUsers(e.target.value);
-    });
-
-    // User modal close
-    document.querySelector('#userModal .modal-close').addEventListener('click', closeUserModal);
-    document.getElementById('userModal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeUserModal();
-    });
-
-    // Balance actions
-    document.getElementById('addBalanceBtn').addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('editBalance').value);
-        if (amount > 0 && selectedUser) {
-            updateUserBalance(selectedUser.telegram_id, amount, 'add');
-        }
-    });
-
-    document.getElementById('subtractBalanceBtn').addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('editBalance').value);
-        if (amount > 0 && selectedUser) {
-            updateUserBalance(selectedUser.telegram_id, amount, 'subtract');
-        }
-    });
-
-    // Subscription update
-    document.getElementById('updateSubscriptionBtn').addEventListener('click', () => {
-        if (selectedUser) {
-            const plan = document.getElementById('editSubscriptionPlan').value;
-            const endDate = document.getElementById('editSubscriptionEnd').value;
-            updateUserSubscription(selectedUser.telegram_id, plan, endDate);
-        }
-    });
-
-    // Delete user
-    document.getElementById('deleteUserBtn').addEventListener('click', () => {
-        if (selectedUser) {
-            deleteUser(selectedUser.telegram_id);
-        }
-    });
-
-    // Save prices
-    document.getElementById('savePricesBtn').addEventListener('click', savePrices);
-
-    // Save settings
-    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-
-    // Auto-check auth if opened in Telegram
-    setTimeout(() => {
-        if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-            checkAdminAuth();
-        }
-    }, 500);
-});

@@ -2,11 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f0f0f" />
     <title>Admin Panel - FlowState VPN</title>
     <link rel="stylesheet" href="admin.css" />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
     <!-- Login Screen -->
@@ -20,12 +19,8 @@
             
             <div id="loginError" class="login-error" style="display: none;"></div>
             
-            <button id="telegramLoginBtn" class="btn-telegram-login">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20.665 3.41705C20.9091 4.08105 21.1531 5.08105 21.0861 5.99405L19.9991 18.4991C19.9991 18.4991 19.9321 19.6991 19.0661 19.9661C18.1991 20.2331 17.2661 19.6991 16.7991 19.3661L12.6661 16.2991L10.6661 18.2331C10.6661 18.2331 9.99915 18.8991 9.33315 18.8991C8.66615 18.8991 8.53315 18.6991 8.39915 18.5661C7.99915 18.1661 7.93315 17.4991 7.93315 17.4991L7.59915 12.8991L15.9991 5.36605C16.3991 5.03305 16.9991 4.56605 16.3991 4.56605C16.0661 4.56605 15.3991 4.96605 15.3991 4.96605L6.99915 10.2991L3.39915 9.16605C3.39915 9.16605 2.59915 8.89905 2.59915 8.36605C2.59915 8.09905 2.86615 7.83305 3.39915 7.69905L19.3991 1.56605C19.3991 1.56605 20.165 1.23305 20.665 3.41705Z" fill="currentColor"/>
-                </svg>
-                Войти через Telegram
-            </button>
+            <!-- Telegram Login Widget -->
+            <div id="telegramLoginWidget"></div>
             
             <p class="login-note">Только для авторизованных администраторов</p>
         </div>

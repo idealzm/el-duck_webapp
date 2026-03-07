@@ -84,6 +84,7 @@ function getOrCreateUser($db, $telegramId, $userData = []) {
 
 // Admin config file path
 $adminConfigPath = __DIR__ . '/admin_config.json';
+$botConfigPath = __DIR__ . '/bot_config.json';
 
 // Load admin config
 function loadAdminConfig($adminConfigPath) {
@@ -137,6 +138,12 @@ if (strpos($action, 'admin') === 0) {
     $config = loadAdminConfig($adminConfigPath);
     
     switch ($action) {
+        case 'admin/bot-config':
+            handleAdminBotConfig($botConfigPath);
+            break;
+        case 'admin/auth':
+            handleAdminAuth($config);
+            break;
         case 'admin/check':
             handleAdminCheck($config);
             break;
@@ -723,8 +730,116 @@ function handleCards($db) {
 }
 
 // Admin handlers
+function handleAdminBotConfig($botConfigPath) {
+    $botConfig = ['botUsername' => 'flowstatevpn_bot'];
+    
+    if (file_exists($botConfigPath)) {
+        $config = json_decode(file_get_contents($botConfigPath), true);
+        if ($config) {
+            $botConfig = $config;
+        }
+    }
+    
+    echo json_encode($botConfig);
+}
+
+function handleAdminAuth($config) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    $telegramId = $input['id'] ?? 0;
+    
+    if (!$telegramId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid parameters']);
+        return;
+    }
+    
+    // Verify Telegram auth hash
+    if (!verifyTelegramAuth($input)) {
+        http_response_code(401);
+        echo json_encode(['error' => 'Invalid auth data']);
+        return;
+    }
+    
+    // Check if user is admin
+    if (!isAdmin($telegramId, $config)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Access denied. Not an admin.']);
+        return;
+    }
+    
+    // Generate session token
+    $token = bin2hex(random_bytes(32));
+    
+    // Store session (in file for simplicity)
+    $sessionFile = __DIR__ . '/admin_sessions.json';
+    $sessions = [];
+    if (file_exists($sessionFile)) {
+        $sessions = json_decode(file_get_contents($sessionFile), true) ?? [];
+    }
+    
+    // Clean expired sessions (older than 24 hours)
+    $sessions = array_filter($sessions, function($session) {
+        return time() - $session['timestamp'] < 86400;
+    });
+    
+    // Save new session
+    $sessions[$token] = [
+        'telegramId' => $telegramId,
+        'timestamp' => time()
+    ];
+    
+    file_put_contents($sessionFile, json_encode($sessions));
+    
+    echo json_encode([
+        'success' => true,
+        'token' => $token
+    ]);
+}
+
+function verifyTelegramAuth($data) {
+    if (!isset($data['hash'])) {
+        return false;
+    }
+    
+    // Load bot token from config
+    $botConfigPath = __DIR__ . '/bot_config.json';
+    $botToken = '';
+    
+    if (file_exists($botConfigPath)) {
+        $botConfig = json_decode(file_get_contents($botConfigPath), true);
+        $botToken = $botConfig['botToken'] ?? '';
+    }
+    
+    if (empty($botToken) || $botToken === 'YOUR_BOT_TOKEN') {
+        error_log('Telegram Bot Token not configured');
+        return false;
+    }
+    
+    $checkHash = $data['hash'];
+    unset($data['hash']);
+    
+    $dataCheckArr = [];
+    foreach ($data as $key => $value) {
+        $dataCheckArr[] = $key . '=' . $value;
+    }
+    sort($dataCheckArr);
+    
+    $dataCheckString = implode("\n", $dataCheckArr);
+    $secretKey = hash_hmac('sha256', $botToken, "WebAppData", true);
+    $hash = bin2hex(hash_hmac('sha256', $dataCheckString, $secretKey, true));
+    
+    return $hash === $checkHash;
+}
+
 function handleAdminCheck($config) {
-    $telegramId = isset($_GET['telegramId']) ? (int)$_GET['telegramId'] : 0;
+    $input = json_decode(file_get_contents('php://input'), true);
+    $telegramId = $input['telegramId'] ?? 0;
     
     echo json_encode([
         'isAdmin' => isAdmin($telegramId, $config)
