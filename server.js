@@ -24,6 +24,7 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0'; // Слушать все интерфейсы
 
 // Middleware
 app.use(cors({
@@ -76,9 +77,9 @@ async function startServer() {
   try {
     await initDatabase();
     
-    app.listen(PORT, () => {
-      console.log(`🦆 El-Duck Server running on port ${PORT}`);
-      console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+    app.listen(PORT, HOST, () => {
+      console.log(`🦆 El-Duck Server running on ${HOST}:${PORT}`);
+      console.log(`   Environment: ${process.env.NODE_ENV || 'production'}`);
       console.log(`   Health check: http://localhost:${PORT}/health`);
     });
   } catch (error) {

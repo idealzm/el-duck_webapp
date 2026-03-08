@@ -195,9 +195,8 @@ async function createSubscriptionPayment(userId, plan, amount, description) {
   const userService = require('./userService');
   const user = userService.getOrCreateUser(userId);
   
-  const protocol = 'http';
-  const host = 'localhost:3000';
-  const returnUrl = `${protocol}://${host}/api/subscription/success?paymentId={paymentId}`;
+  const domain = process.env.DOMAIN || 'http://localhost:3000';
+  const returnUrl = `${domain}/api/subscription/success?paymentId={paymentId}`;
   
   const yooKassaResult = await createYooKassaPayment(amount, description, returnUrl);
   
@@ -231,9 +230,8 @@ async function createTopUpPayment(userId, amount, description = 'Пополне�
     throw new Error(`Максимальная сумма: ${prices.maxTopUp} ₽`);
   }
   
-  const protocol = 'http';
-  const host = 'localhost:3000';
-  const returnUrl = `${protocol}://${host}/api/payment/success?paymentId={paymentId}`;
+  const domain = process.env.DOMAIN || 'http://localhost:3000';
+  const returnUrl = `${domain}/api/payment/success?paymentId={paymentId}`;
   
   const yooKassaResult = await createYooKassaPayment(amount, description, returnUrl);
   
