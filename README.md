@@ -2,6 +2,8 @@
 
 Современный Node.js/Express сервер для VPN сервиса подписок с интеграцией YooKassa.
 
+**Домен:** https://dev.el-duck.ru
+
 ## 🚀 Быстрый старт
 
 ### Установка зависимостей
@@ -17,7 +19,7 @@ npm install
 cp .env.example .env
 ```
 
-2. Отредактируйте `.env` при необходимости (тестовые ключи YooKassa уже настроены)
+2. Отредактируйте `.env` (домен уже настроен на `dev.el-duck.ru`)
 
 ### Запуск
 
@@ -27,9 +29,10 @@ npm start
 
 # Режим разработки (с авто-перезагрузкой)
 npm run dev
-```
 
-Сервер запустится на `http://localhost:3000`
+# Через PM2 (на VPS)
+pm2 start ecosystem.config.js
+```
 
 ## 📡 API Endpoints
 
