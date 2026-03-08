@@ -18,42 +18,52 @@ $dbPath = __DIR__ . '/database.db';
 
 // Initialize database
 function initDb($dbPath) {
-    $db = new SQLite3($dbPath);
-    
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_id INTEGER UNIQUE NOT NULL,
-            first_name TEXT,
-            last_name TEXT,
-            username TEXT,
-            balance REAL DEFAULT 0,
-            subscription_active BOOLEAN DEFAULT 0,
-            subscription_plan TEXT,
-            subscription_end DATETIME,
-            devices_count INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ");
-    
-    $db->exec("
-        CREATE TABLE IF NOT EXISTS payments (
-            id TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            amount REAL NOT NULL,
-            status TEXT DEFAULT 'pending',
-            yookassa_payment_id TEXT,
-            description TEXT,
-            payment_type TEXT DEFAULT 'topup',
-            subscription_plan TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-    ");
-    
-    return $db;
+    try {
+        $db = new SQLite3($dbPath);
+        
+        // Enable foreign keys
+        $db->exec('PRAGMA foreign_keys = ON');
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                telegram_id INTEGER UNIQUE NOT NULL,
+                first_name TEXT,
+                last_name TEXT,
+                username TEXT,
+                balance REAL DEFAULT 0,
+                subscription_active BOOLEAN DEFAULT 0,
+                subscription_plan TEXT,
+                subscription_end DATETIME,
+                devices_count INTEGER DEFAULT 0,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ");
+
+        $db->exec("
+            CREATE TABLE IF NOT EXISTS payments (
+                id TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                amount REAL NOT NULL,
+                status TEXT DEFAULT 'pending',
+                yookassa_payment_id TEXT,
+                description TEXT,
+                payment_type TEXT DEFAULT 'topup',
+                subscription_plan TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            )
+        ");
+
+        return $db;
+    } catch (Exception $e) {
+        error_log('Database initialization error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
+        exit;
+    }
 }
 
 $db = initDb($dbPath);
@@ -216,23 +226,35 @@ switch ($action) {
 }
 
 function handleBalance($db) {
-    $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
-    
-    if (!$userId) {
-        http_response_code(400);
-        echo json_encode(['error' => 'userId required']);
-        return;
+    try {
+        $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
+
+        if (!$userId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'userId required']);
+            return;
+        }
+
+        $user = getOrCreateUser($db, $userId);
+
+        if (!$user) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create user']);
+            return;
+        }
+
+        echo json_encode([
+            'balance' => number_format($user['balance'], 2, '.', ''),
+            'subscriptionActive' => (bool)$user['subscription_active'],
+            'subscriptionPlan' => $user['subscription_plan'],
+            'subscriptionEnd' => $user['subscription_end'],
+            'devicesCount' => $user['devices_count']
+        ]);
+    } catch (Exception $e) {
+        error_log('Balance error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
     }
-    
-    $user = getOrCreateUser($db, $userId);
-    
-    echo json_encode([
-        'balance' => number_format($user['balance'], 2, '.', ''),
-        'subscriptionActive' => (bool)$user['subscription_active'],
-        'subscriptionPlan' => $user['subscription_plan'],
-        'subscriptionEnd' => $user['subscription_end'],
-        'devicesCount' => $user['devices_count']
-    ]);
 }
 
 function handleSubscriptionCreate($db, $shopId, $secretKey) {
