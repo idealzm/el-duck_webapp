@@ -27,11 +27,35 @@ const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0'; // Слушать все интерфейсы
 
 // Middleware
-app.use(cors({
-  origin: '*',
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Разрешить все запросы без origin (Telegram WebApp, мобильные приложения)
+    if (!origin) return callback(null, true);
+    
+    // Разрешённые домены
+    const allowedDomains = [
+      'https://dev.el-duck.ru',
+      'http://localhost:3000',
+      'https://t.me',
+      'https://telegram.org',
+      'android-app://org.telegram.messenger',
+      'ios-app://686446520'
+    ];
+    
+    if (allowedDomains.indexOf(origin) !== -1 || origin.includes('telegram.org')) {
+      callback(null, true);
+    } else {
+      console.warn('CORS blocked origin:', origin);
+      callback(null, true); // Всё равно разрешаем для отладки
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 

@@ -83,17 +83,19 @@ function initTelegram() {
 function initUser() {
     console.log('=== Init User ===');
     console.log('Telegram object:', tg);
-    
+    console.log('User-Agent:', navigator.userAgent);
+    console.log('Current URL:', window.location.href);
+
     if (tg && tg.initDataUnsafe) {
         console.log('initDataUnsafe:', tg.initDataUnsafe);
         console.log('initDataUnsafe.user:', tg.initDataUnsafe.user);
     }
-    
+
     // Проверяем наличие данных пользователя от Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
         const tgUser = tg.initDataUnsafe.user;
         console.log('Telegram user data:', tgUser);
-        
+
         currentUser = {
             id: tgUser.id,
             firstName: tgUser.first_name || 'Пользователь',
@@ -109,12 +111,14 @@ function initUser() {
 
         // Load balance from backend
         loadUserBalance();
-        
+
         console.log('Telegram user initialized successfully');
     } else {
         // Demo mode - no Telegram
         console.log('No Telegram user data, using demo mode');
-        
+        console.log('Window.Telegram:', window.Telegram);
+        console.log('Window.Telegram.WebApp:', window.Telegram && window.Telegram.WebApp);
+
         currentUser = {
             id: 123456,
             firstName: 'Демо',
@@ -878,24 +882,28 @@ async function loadCards() {
     try {
         // Try to load from API with user ID
         let data;
-        
+
         if (currentUser && currentUser.id) {
+            console.log('Loading cards for user:', currentUser.id);
             const response = await fetch(`${API_BASE_URL}/cards?userId=${currentUser.id}`);
+            console.log('Cards API response status:', response.status);
 
             if (response.ok) {
                 data = await response.json();
+                console.log('Cards data loaded:', data);
             } else {
-                // Fallback to local file
+                console.warn('Cards API failed, using fallback');
                 data = await loadCardsFromLocal();
             }
         } else {
-            // No user - load from local
+            console.log('No user, loading from local');
             data = await loadCardsFromLocal();
         }
 
         container.innerHTML = '';
 
         if (!data || !data.cards || !Array.isArray(data.cards)) {
+            console.error('Invalid cards data:', data);
             container.innerHTML = '<p style="color: var(--text-secondary);">Ошибка: неверный формат данных</p>';
             return;
         }
