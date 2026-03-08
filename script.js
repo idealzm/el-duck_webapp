@@ -487,6 +487,71 @@ function closeTopUpModal() {
 
 // Subscription Modal
 let selectedPlan = null;
+let currentPrices = {
+    telegramPrice: 99,
+    fullPrice: 299,
+    minTopUp: 50,
+    maxTopUp: 500
+};
+
+// Загрузка цен из API
+async function loadPrices() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/prices`);
+        if (response.ok) {
+            const data = await response.json();
+            currentPrices = {
+                telegramPrice: data.telegramPrice || 99,
+                fullPrice: data.fullPrice || 299,
+                minTopUp: data.minTopUp || 50,
+                maxTopUp: data.maxTopUp || 500
+            };
+            // Обновляем цены в модальном окне
+            updatePricesInModal();
+            // Обновляем placeholder и атрибуты input
+            updateTopUpLimits();
+        }
+    } catch (error) {
+        console.error('Load prices error:', error);
+    }
+}
+
+// Обновление лимитов пополнения
+function updateTopUpLimits() {
+    const customAmount = document.getElementById('customAmount');
+    if (customAmount) {
+        customAmount.min = currentPrices.minTopUp;
+        customAmount.max = currentPrices.maxTopUp;
+        customAmount.placeholder = `Мин. ${currentPrices.minTopUp} ₽`;
+    }
+    
+    // Обновляем текст в payment-info
+    const paymentNote = document.querySelector('.payment-info .payment-note');
+    if (paymentNote) {
+        paymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
+    }
+}
+
+// Обновление цен в модальном окне
+function updatePricesInModal() {
+    const telegramPriceEl = document.querySelector('.plan-card[data-plan="telegram"] .price-value');
+    const telegramBtn = document.querySelector('.btn-plan-select[data-plan="telegram"]');
+    const fullPriceEl = document.querySelector('.plan-card[data-plan="full"] .price-value');
+    const fullBtn = document.querySelector('.btn-plan-select[data-plan="full"]');
+    
+    if (telegramPriceEl) {
+        telegramPriceEl.textContent = currentPrices.telegramPrice;
+    }
+    if (telegramBtn) {
+        telegramBtn.setAttribute('data-price', currentPrices.telegramPrice);
+    }
+    if (fullPriceEl) {
+        fullPriceEl.textContent = currentPrices.fullPrice;
+    }
+    if (fullBtn) {
+        fullBtn.setAttribute('data-price', currentPrices.fullPrice);
+    }
+}
 
 function openSubscriptionModal() {
     const modal = document.getElementById('subscriptionModal');
@@ -495,8 +560,9 @@ function openSubscriptionModal() {
         document.body.classList.add('modal-open');
         selectedPlan = null;
 
-        // Загружаем баланс при открытии модального окна
+        // Загружаем баланс и цены при открытии модального окна
         loadBalanceForSubscription();
+        loadPrices();
     }
 
     if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
@@ -653,11 +719,11 @@ function updateSelectedAmount() {
 function getSelectedAmount() {
     const customInput = document.getElementById('customAmount');
     const customValue = parseFloat(customInput.value);
-    
-    if (customValue && customValue >= 50) {
+
+    if (customValue && customValue >= currentPrices.minTopUp) {
         return customValue;
     }
-    
+
     return selectedAmount || 0;
 }
 
@@ -669,14 +735,14 @@ async function createPayment(amount) {
         return;
     }
 
-    // Проверка минимальной и максимальной суммы
-    if (amount < 50) {
-        showToast('Минимальная сумма: 50 ₽', 'error');
+    // Проверка минимальной и максимальной суммы из настроек
+    if (amount < currentPrices.minTopUp) {
+        showToast(`Минимальная сумма: ${currentPrices.minTopUp} ₽`, 'error');
         return;
     }
 
-    if (amount > 500) {
-        showToast('Максимальная сумма: 500 ₽', 'error');
+    if (amount > currentPrices.maxTopUp) {
+        showToast(`Максимальная сумма: ${currentPrices.maxTopUp} ₽`, 'error');
         return;
     }
     
@@ -1194,7 +1260,7 @@ document.addEventListener('keydown', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     // Initialize Telegram WebApp first
     initTelegram();
-    
+
     // Notify Telegram that app is ready
     if (tg && tg.ready && typeof tg.ready === 'function') {
         tg.ready();
@@ -1203,9 +1269,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize user
     initUser();
 
-    // Load cards
+    // Load cards and prices
     loadCards();
-    
+    loadPrices();
+
     // Проверяем, не вернулись ли мы после оплаты
     checkPaymentReturn();
     

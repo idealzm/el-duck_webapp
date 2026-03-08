@@ -204,6 +204,12 @@ switch ($action) {
     case 'cards':
         handleCards($db);
         break;
+    case 'prices':
+        handlePrices($adminConfigPath);
+        break;
+    case 'settings':
+        handleSettings($adminConfigPath);
+        break;
     default:
         http_response_code(404);
         echo json_encode(['error' => 'Not found']);
@@ -704,6 +710,11 @@ function handleCards($db) {
     $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
     $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
 
+    // Load settings for dynamic URLs
+    $adminConfigPath = __DIR__ . '/admin_config.json';
+    $config = loadAdminConfig($adminConfigPath);
+    $settings = $config['settings'] ?? [];
+
     $dataPath = __DIR__ . '/data.json';
     if (!file_exists($dataPath)) {
         http_response_code(500);
@@ -712,6 +723,29 @@ function handleCards($db) {
     }
 
     $jsonData = json_decode(file_get_contents($dataPath), true);
+
+    // Update cards with settings from admin_config
+    foreach ($jsonData['cards'] as &$card) {
+        if ($card['id'] === 'FlowStateWG') {
+            // Update WireGuard URLs from settings
+            if (!empty($settings['wgMsiUrl'])) {
+                $card['instruction']['steps'][0]['links'][0]['url'] = $settings['wgMsiUrl'];
+            }
+            if (!empty($settings['wgConfigUrl'])) {
+                $card['instruction']['steps'][1]['links'][0]['url'] = $settings['wgConfigUrl'];
+            }
+        } elseif ($card['id'] === 'FlowStateProxy') {
+            // Update proxy settings from admin_config
+            if (!empty($settings['proxyServer'])) {
+                $server = $settings['proxyServer'];
+                $port = $settings['proxyPort'] ?? '1080';
+                $user = $settings['proxyUser'] ?? 'flowstateproxy';
+                $pass = $settings['proxyPass'] ?? '';
+                $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$server}&port={$port}&user={$user}&pass={$pass}";
+            }
+        }
+    }
+    unset($card);
 
     $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
         // Telegram Proxy доступен с telegram или full подпиской
@@ -727,6 +761,27 @@ function handleCards($db) {
         'hasTelegramAccess' => $hasTelegramAccess,
         'subscriptionPlan' => $user['subscription_plan']
     ]);
+}
+
+// Public price handler
+function handlePrices($adminConfigPath) {
+    $config = loadAdminConfig($adminConfigPath);
+    $prices = $config['prices'] ?? [
+        'telegramPrice' => 99,
+        'fullPrice' => 299,
+        'minTopUp' => 50,
+        'maxTopUp' => 500
+    ];
+    
+    echo json_encode($prices);
+}
+
+// Public settings handler
+function handleSettings($adminConfigPath) {
+    $config = loadAdminConfig($adminConfigPath);
+    $settings = $config['settings'] ?? [];
+    
+    echo json_encode($settings);
 }
 
 // Admin handlers
