@@ -535,10 +535,23 @@ function updateTopUpLimits() {
         customAmount.placeholder = `Мин. ${currentPrices.minTopUp} ₽`;
     }
     
-    // Обновляем текст в payment-info
-    const paymentNote = document.querySelector('.payment-info .payment-note');
-    if (paymentNote) {
-        paymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
+    // Обновляем текст в payment-info (для модального окна пополнения)
+    const topUpPaymentNote = document.querySelector('#topUpModal .payment-info .payment-note');
+    if (topUpPaymentNote) {
+        topUpPaymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
+    }
+    
+    // Обновляем текст о периоде списания (для модального окна подписки)
+    const subscriptionPaymentNote = document.querySelector('#subscriptionModal .payment-info .payment-note');
+    if (subscriptionPaymentNote) {
+        const periodLabel = billingCycleLabels[currentPrices.billingCycle] || 'месяц';
+        const daysLabel = {
+            'day': '1 день',
+            'week': '7 дней',
+            'month': '30 дней',
+            'year': '365 дней'
+        };
+        subscriptionPaymentNote.textContent = `Списание каждые ${daysLabel[currentPrices.billingCycle] || '30 дней'}`;
     }
 }
 

@@ -621,6 +621,25 @@ body {
     color: var(--error);
 }
 
+/* Empty and Error Messages */
+.empty-message,
+.error-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.error-message {
+    color: var(--error);
+}
+
+/* Stats Row in Subscriptions */
+.tab-header .stats-row {
+    width: 100%;
+    margin-top: 16px;
+}
+
 /* Settings */
 .settings-section {
     background: var(--bg-card);
@@ -650,9 +669,16 @@ body {
     gap: 8px;
 }
 
+.setting-item:has(input[type="checkbox"]) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
 .setting-item label {
     font-size: 13px;
     color: var(--text-secondary);
+    margin: 0;
 }
 
 .setting-item input,
@@ -1022,6 +1048,20 @@ body {
     .user-card-stats {
         flex-wrap: wrap;
         gap: 12px;
+    }
+
+    .subscription-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .subscription-info {
+        width: 100%;
+    }
+
+    .subscription-status-badge {
+        align-self: flex-end;
     }
 
     .tab-btn {
