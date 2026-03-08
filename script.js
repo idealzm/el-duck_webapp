@@ -32,17 +32,51 @@ function initTelegram() {
         return false;
     }
 
-    // Expand to full height
+    // Развернуть на всю высоту
     tg.expand();
 
-    // Set header color
+    // Настроить цвета
     tg.setHeaderColor('#111111');
-
-    // Set background color
     tg.setBackgroundColor('#111111');
+    
+    // Установить цвет нижней панели (Android)
+    if (typeof tg.setBottomBarColor === 'function') {
+        tg.setBottomBarColor('#1a1a1a');
+    }
 
-    // Enable closing confirmation
+    // Включить подтверждение закрытия
     tg.enableClosingConfirmation();
+
+    // Включить вертикальные свайпы
+    tg.enableVerticalSwipes();
+
+    // Запросить fullscreen (если поддерживается)
+    if (typeof tg.requestFullscreen === 'function') {
+        tg.requestFullscreen();
+    }
+
+    // Сообщить о готовности
+    tg.ready();
+
+    // Listen for viewport changes
+    tg.onEvent('viewportChanged', function(event) {
+        if (event.isStateStable) {
+            console.log('Viewport stable:', tg.viewportStableHeight);
+        }
+    });
+
+    // Listen for fullscreen events
+    tg.onEvent('fullscreenChanged', function() {
+        if (tg.isFullscreen) {
+            console.log('Fullscreen mode active');
+            tg.setHeaderColor(tg.themeParams.bg_color || '#111111');
+        }
+    });
+
+    // Listen for safe area changes
+    tg.onEvent('safeAreaChanged', function() {
+        console.log('Safe area updated');
+    });
 
     // Listen for visibility changes (when user returns from payment)
     tg.onEvent('visibilityChanged', function(isVisible) {
@@ -68,9 +102,18 @@ function initTelegram() {
         }
     });
 
+    // Listen for theme changes
+    tg.onEvent('themeChanged', function() {
+        console.log('Theme changed, updating colors...');
+        tg.setHeaderColor('#111111');
+        tg.setBackgroundColor('#111111');
+    });
+
     console.log('Telegram WebApp initialized');
     console.log('Platform:', tg.platform);
-    console.log('version:', tg.version);
+    console.log('Version:', tg.version);
+    console.log('IsFullscreen:', tg.isFullscreen);
+    console.log('IsExpanded:', tg.isExpanded);
 
     return true;
 }
