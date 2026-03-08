@@ -35,8 +35,14 @@ function initTelegram() {
     // Expand to full height
     tg.expand();
 
-    // Set header color
-    tg.setHeaderColor('#111111');
+    // Set header color (if supported)
+    if (typeof tg.setHeaderColor === 'function') {
+        try {
+            tg.setHeaderColor('#111111');
+        } catch (e) {
+            // Ignore if not supported in older versions
+        }
+    }
 
     // Set background color
     tg.setBackgroundColor('#111111');
@@ -69,8 +75,6 @@ function initTelegram() {
     });
 
     console.log('Telegram WebApp initialized');
-    console.log('Platform:', tg.platform);
-    console.log('version:', tg.version);
 
     return true;
 }
