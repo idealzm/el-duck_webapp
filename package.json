@@ -1,0 +1,25 @@
+{
+  "name": "el-duck-webapp",
+  "version": "1.0.0",
+  "description": "VPN subscription service with YooKassa payments",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "vpn",
+    "subscription",
+    "yookassa"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "sql.js": "^1.10.3",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.4.1",
+    "axios": "^1.6.7"
+  }
+}
