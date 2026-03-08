@@ -205,8 +205,8 @@ async function createSubscriptionPayment(userId, plan, amount, description) {
   updatePaymentYooKassaId(paymentId, yooKassaResult.yookassaId);
   
   return {
-    paymentId,
-    confirmationUrl: yooKassaResult.confirmationUrl,
+    payment_id: paymentId,
+    confirmation_url: yooKassaResult.confirmationUrl,
     amount,
     plan
   };
@@ -241,8 +241,8 @@ async function createTopUpPayment(userId, amount, description = 'Пополне�
   updatePaymentYooKassaId(paymentId, yooKassaResult.yookassaId);
   
   return {
-    paymentId,
-    confirmationUrl: yooKassaResult.confirmationUrl,
+    payment_id: paymentId,
+    confirmation_url: yooKassaResult.confirmationUrl,
     amount
   };
 }
