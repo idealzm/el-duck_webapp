@@ -82,7 +82,7 @@ async function initTelegramLoginWidget() {
     try {
         const response = await fetch(`${API_BASE_URL}/admin/bot-config`);
         const data = await response.json();
-        const botUsername = data.botUsername || 'flowstatevpn_bot';
+        const botUsername = data.botUsername || 'your_bot';
         
         // Create script element for Telegram widget
         const script = document.createElement('script');
@@ -102,7 +102,7 @@ async function initTelegramLoginWidget() {
         const script = document.createElement('script');
         script.async = true;
         script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', 'flowstatevpn_bot');
+        script.setAttribute('data-telegram-login', 'your_bot');
         script.setAttribute('data-size', 'large');
         script.setAttribute('data-radius', '14');
         script.setAttribute('data-onauth', 'onTelegramAuth(user)');

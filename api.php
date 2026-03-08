@@ -731,7 +731,7 @@ function handleCards($db) {
 
 // Admin handlers
 function handleAdminBotConfig($botConfigPath) {
-    $botConfig = ['botUsername' => 'flowstatevpn_bot'];
+    $botConfig = ['botUsername' => 'your_bot'];
     
     if (file_exists($botConfigPath)) {
         $config = json_decode(file_get_contents($botConfigPath), true);
@@ -838,8 +838,10 @@ function verifyTelegramAuth($data) {
     // Debug log
     error_log('Telegram Auth Data Check String: ' . $dataCheckString);
     error_log('Telegram Auth Received Hash: ' . $checkHash);
+    error_log('Telegram Auth Bot Token: ' . substr($botToken, 0, 10) . '...');
     
-    $secretKey = hash_hmac('sha256', $botToken, "WebAppData", true);
+    // For Telegram Login Widget, use SHA256 of bot token directly
+    $secretKey = hash('sha256', $botToken, true);
     $hash = bin2hex(hash_hmac('sha256', $dataCheckString, $secretKey, true));
     
     error_log('Telegram Auth Computed Hash: ' . $hash);
