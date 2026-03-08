@@ -744,11 +744,11 @@ function handleCards($db) {
         } elseif ($card['id'] === 'FlowStateProxy') {
             // Update proxy settings from admin_config
             if (!empty($settings['proxyServer'])) {
-                $server = $settings['proxyServer'];
-                $port = $settings['proxyPort'] ?? '1080';
-                $user = $settings['proxyUser'] ?? 'flowstateproxy';
-                $pass = $settings['proxyPass'] ?? '';
-                $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$server}&port={$port}&user={$user}&pass={$pass}";
+                $proxyServer = $settings['proxyServer'];
+                $proxyPort = $settings['proxyPort'] ?? '1080';
+                $proxyUser = $settings['proxyUser'] ?? 'flowstateproxy';
+                $proxyPass = $settings['proxyPass'] ?? '';
+                $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$proxyServer}&port={$proxyPort}&user={$proxyUser}&pass={$proxyPass}";
             }
         }
     }
