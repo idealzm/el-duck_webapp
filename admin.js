@@ -116,7 +116,7 @@ async function initTelegramLoginWidget() {
 // Telegram auth callback
 function onTelegramAuth(user) {
     console.log('Telegram Auth User:', user);
-    
+
     // Send user data to backend for verification
     fetch(`${API_BASE_URL}/admin/auth`, {
         method: 'POST',
@@ -130,20 +130,20 @@ function onTelegramAuth(user) {
             // Save session
             sessionStorage.setItem('adminSession', JSON.stringify({
                 id: user.id,
-                firstName: user.first_name,
-                lastName: user.last_name,
-                username: user.username,
-                photoUrl: user.photo_url,
+                firstName: user.first_name || '',
+                lastName: user.last_name || '',
+                username: user.username || '',
+                photoUrl: user.photo_url || '',
                 token: data.token
             }));
-            
+
             currentAdmin = {
                 id: user.id,
                 firstName: user.first_name || 'Admin',
                 lastName: user.last_name || '',
                 username: user.username || 'admin'
             };
-            
+
             showDashboard();
         } else {
             showError(data.error || 'Ошибка авторизации');
@@ -160,7 +160,7 @@ function checkSession() {
     const session = sessionStorage.getItem('adminSession');
     if (session) {
         const sessionData = JSON.parse(session);
-        
+
         // Verify session with backend
         fetch(`${API_BASE_URL}/admin/check`, {
             method: 'POST',
@@ -175,9 +175,9 @@ function checkSession() {
             if (data.isAdmin) {
                 currentAdmin = {
                     id: sessionData.id,
-                    firstName: sessionData.firstName,
-                    lastName: sessionData.lastName,
-                    username: sessionData.username
+                    firstName: sessionData.firstName || 'Admin',
+                    lastName: sessionData.lastName || '',
+                    username: sessionData.username || 'admin'
                 };
                 showDashboard();
             } else {
@@ -195,7 +195,8 @@ function showDashboard() {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('adminDashboard').style.display = 'flex';
 
-    document.getElementById('adminName').textContent = `${currentAdmin.firstName} ${currentAdmin.lastName}`.trim() || currentAdmin.firstName;
+    const fullName = `${currentAdmin.firstName || ''} ${currentAdmin.lastName || ''}`.trim();
+    document.getElementById('adminName').textContent = fullName || currentAdmin.firstName || 'Admin';
     document.getElementById('adminUsername').textContent = currentAdmin.username ? `@${currentAdmin.username}` : '@admin';
 
     loadAllData();

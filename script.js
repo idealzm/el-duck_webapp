@@ -541,18 +541,33 @@ function updateTopUpLimits() {
         topUpPaymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
     }
     
-    // Обновляем текст о периоде списания (для модального окна подписки)
-    const subscriptionPaymentNote = document.querySelector('#subscriptionModal .payment-info .payment-note');
-    if (subscriptionPaymentNote) {
-        const periodLabel = billingCycleLabels[currentPrices.billingCycle] || 'месяц';
-        const daysLabel = {
-            'day': '1 день',
-            'week': '7 дней',
-            'month': '30 дней',
-            'year': '365 дней'
-        };
-        subscriptionPaymentNote.textContent = `Списание каждые ${daysLabel[currentPrices.billingCycle] || '30 дней'}`;
-    }
+    // Обновляем кнопки быстрых сумм
+    updateAmountPresets();
+}
+
+// Обновление кнопок быстрых сумм
+function updateAmountPresets() {
+    const presets = document.querySelectorAll('.amount-preset');
+    const minAmount = currentPrices.minTopUp;
+    const maxAmount = currentPrices.maxTopUp;
+    
+    // Стандартные значения
+    const defaultPresets = [100, 300, 500];
+    
+    presets.forEach((preset, index) => {
+        // Если пресет выходит за рамки лимитов, скрываем или корректируем
+        const presetAmount = parseInt(preset.dataset.amount);
+        
+        if (presetAmount < minAmount) {
+            // Если меньше минимума, устанавливаем минимальное
+            preset.dataset.amount = minAmount;
+            preset.textContent = `${minAmount} ₽`;
+        } else if (presetAmount > maxAmount) {
+            // Если больше максимума, устанавливаем максимальное
+            preset.dataset.amount = maxAmount;
+            preset.textContent = `${maxAmount} ₽`;
+        }
+    });
 }
 
 // Обновление цен в модальном окне
