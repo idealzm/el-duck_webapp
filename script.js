@@ -50,9 +50,13 @@ function initTelegram() {
     // Включить вертикальные свайпы
     tg.enableVerticalSwipes();
 
-    // Запросить fullscreen (если поддерживается)
-    if (typeof tg.requestFullscreen === 'function') {
-        tg.requestFullscreen();
+    // Запросить fullscreen (если поддерживается, Bot API 8.0+)
+    if (typeof tg.requestFullscreen === 'function' && parseFloat(tg.version || '6.0') >= 8.0) {
+        try {
+            tg.requestFullscreen();
+        } catch (e) {
+            console.log('Fullscreen not supported:', e);
+        }
     }
 
     // Сообщить о готовности
