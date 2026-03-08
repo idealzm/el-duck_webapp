@@ -32,55 +32,17 @@ function initTelegram() {
         return false;
     }
 
-    // Развернуть на всю высоту
+    // Expand to full height
     tg.expand();
 
-    // Настроить цвета
+    // Set header color
     tg.setHeaderColor('#111111');
+
+    // Set background color
     tg.setBackgroundColor('#111111');
-    
-    // Установить цвет нижней панели (Android)
-    if (typeof tg.setBottomBarColor === 'function') {
-        tg.setBottomBarColor('#1a1a1a');
-    }
 
-    // Включить подтверждение закрытия
+    // Enable closing confirmation
     tg.enableClosingConfirmation();
-
-    // Включить вертикальные свайпы
-    tg.enableVerticalSwipes();
-
-    // Запросить fullscreen (если поддерживается, Bot API 8.0+)
-    if (typeof tg.requestFullscreen === 'function' && parseFloat(tg.version || '6.0') >= 8.0) {
-        try {
-            tg.requestFullscreen();
-        } catch (e) {
-            console.log('Fullscreen not supported:', e);
-        }
-    }
-
-    // Сообщить о готовности
-    tg.ready();
-
-    // Listen for viewport changes
-    tg.onEvent('viewportChanged', function(event) {
-        if (event.isStateStable) {
-            console.log('Viewport stable:', tg.viewportStableHeight);
-        }
-    });
-
-    // Listen for fullscreen events
-    tg.onEvent('fullscreenChanged', function() {
-        if (tg.isFullscreen) {
-            console.log('Fullscreen mode active');
-            tg.setHeaderColor(tg.themeParams.bg_color || '#111111');
-        }
-    });
-
-    // Listen for safe area changes
-    tg.onEvent('safeAreaChanged', function() {
-        console.log('Safe area updated');
-    });
 
     // Listen for visibility changes (when user returns from payment)
     tg.onEvent('visibilityChanged', function(isVisible) {
@@ -106,18 +68,9 @@ function initTelegram() {
         }
     });
 
-    // Listen for theme changes
-    tg.onEvent('themeChanged', function() {
-        console.log('Theme changed, updating colors...');
-        tg.setHeaderColor('#111111');
-        tg.setBackgroundColor('#111111');
-    });
-
     console.log('Telegram WebApp initialized');
     console.log('Platform:', tg.platform);
-    console.log('Version:', tg.version);
-    console.log('IsFullscreen:', tg.isFullscreen);
-    console.log('IsExpanded:', tg.isExpanded);
+    console.log('version:', tg.version);
 
     return true;
 }
@@ -210,16 +163,11 @@ async function loadUserBalance() {
 
     if (!currentUser || !balanceValue) return;
 
-    console.log('=== Load User Balance ===');
-    console.log('currentUser.id:', currentUser.id);
-
     try {
         const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
-        console.log('Balance response status:', response.status);
 
         if (response.ok) {
             const data = await response.json();
-            console.log('Balance data:', data);
             balanceValue.textContent = parseFloat(data.balance || 0).toFixed(2);
 
             if (devicesCount) {
@@ -229,7 +177,6 @@ async function loadUserBalance() {
             // Update subscription UI
             updateSubscriptionUI(data);
         } else {
-            console.warn('Balance API returned error');
             // Backend not available - use demo mode
             if (balanceValue) balanceValue.textContent = '0.00';
             updateSubscriptionUI({ subscriptionActive: false, subscriptionPlan: null, subscriptionEnd: null });
@@ -504,13 +451,17 @@ function switchSection(sectionName) {
 }
 
 // Top Up Modal
+let selectedAmount = null;
+
 function openTopUpModal() {
     const modal = document.getElementById('topUpModal');
     if (modal) {
         modal.classList.add('active');
         document.body.classList.add('modal-open');
+        selectedAmount = null;
+        updateSelectedAmount();
     }
-
+    
     if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
         tg.HapticFeedback.impactOccurred('light');
     }
@@ -588,6 +539,19 @@ function updateTopUpLimits() {
     const topUpPaymentNote = document.querySelector('#topUpModal .payment-info .payment-note');
     if (topUpPaymentNote) {
         topUpPaymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
+    }
+    
+    // Обновляем текст о периоде списания (для модального окна подписки)
+    const subscriptionPaymentNote = document.querySelector('#subscriptionModal .payment-info .payment-note');
+    if (subscriptionPaymentNote) {
+        const periodLabel = billingCycleLabels[currentPrices.billingCycle] || 'месяц';
+        const daysLabel = {
+            'day': '1 день',
+            'week': '7 дней',
+            'month': '30 дней',
+            'year': '365 дней'
+        };
+        subscriptionPaymentNote.textContent = `Списание каждые ${daysLabel[currentPrices.billingCycle] || '30 дней'}`;
     }
 }
 
@@ -768,6 +732,34 @@ function payBalanceSubscription(plan, price, payBtn) {
     });
 }
 
+function updateSelectedAmount() {
+    const presets = document.querySelectorAll('.amount-preset');
+    const customInput = document.getElementById('customAmount');
+    
+    presets.forEach(preset => {
+        preset.classList.remove('selected');
+        if (selectedAmount && preset.dataset.amount === selectedAmount.toString()) {
+            preset.classList.add('selected');
+            customInput.value = '';
+        }
+    });
+    
+    if (customInput.value && customInput.value !== selectedAmount?.toString()) {
+        presets.forEach(p => p.classList.remove('selected'));
+    }
+}
+
+function getSelectedAmount() {
+    const customInput = document.getElementById('customAmount');
+    const customValue = parseFloat(customInput.value);
+
+    if (customValue && customValue >= currentPrices.minTopUp) {
+        return customValue;
+    }
+
+    return selectedAmount || 0;
+}
+
 // Create YooKassa payment
 async function createPayment(amount) {
     const payBtn = document.getElementById('payBtn');
@@ -879,28 +871,20 @@ async function loadCards() {
         return;
     }
 
-    console.log('=== Load Cards ===');
-    console.log('currentUser:', currentUser);
-
     try {
         // Try to load from API with user ID
         let data;
-
+        
         if (currentUser && currentUser.id) {
-            console.log('Fetching cards from API with userId:', currentUser.id);
             const response = await fetch(`${API_BASE_URL}/cards?userId=${currentUser.id}`);
-            console.log('Response status:', response.status);
 
             if (response.ok) {
                 data = await response.json();
-                console.log('Cards data:', data);
             } else {
-                console.warn('API returned error, falling back to local file');
                 // Fallback to local file
                 data = await loadCardsFromLocal();
             }
         } else {
-            console.log('No user, loading from local file');
             // No user - load from local
             data = await loadCardsFromLocal();
         }
@@ -908,7 +892,6 @@ async function loadCards() {
         container.innerHTML = '';
 
         if (!data || !data.cards || !Array.isArray(data.cards)) {
-            console.error('Invalid data format:', data);
             container.innerHTML = '<p style="color: var(--text-secondary);">Ошибка: неверный формат данных</p>';
             return;
         }
@@ -1371,15 +1354,23 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBalanceBtn.addEventListener('click', refreshBalance);
     }
     
-    // Custom amount input validation
+    // Amount presets
+    document.querySelectorAll('.amount-preset').forEach(preset => {
+        preset.addEventListener('click', () => {
+            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
+                tg.HapticFeedback.impactOccurred('light');
+            }
+            selectedAmount = parseInt(preset.dataset.amount);
+            updateSelectedAmount();
+        });
+    });
+    
+    // Custom amount input
     const customAmountInput = document.getElementById('customAmount');
     if (customAmountInput) {
-        customAmountInput.addEventListener('input', function() {
-            // Validate input
-            const value = parseFloat(this.value);
-            if (isNaN(value)) {
-                this.value = '';
-            }
+        customAmountInput.addEventListener('input', () => {
+            selectedAmount = null;
+            document.querySelectorAll('.amount-preset').forEach(p => p.classList.remove('selected'));
         });
     }
     
@@ -1387,8 +1378,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const payBtn = document.getElementById('payBtn');
     if (payBtn) {
         payBtn.addEventListener('click', () => {
-            const customInput = document.getElementById('customAmount');
-            const amount = parseFloat(customInput.value);
+            const amount = getSelectedAmount();
             createPayment(amount);
         });
     }

@@ -18,52 +18,42 @@ $dbPath = __DIR__ . '/database.db';
 
 // Initialize database
 function initDb($dbPath) {
-    try {
-        $db = new SQLite3($dbPath);
-        
-        // Enable foreign keys
-        $db->exec('PRAGMA foreign_keys = ON');
-
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                telegram_id INTEGER UNIQUE NOT NULL,
-                first_name TEXT,
-                last_name TEXT,
-                username TEXT,
-                balance REAL DEFAULT 0,
-                subscription_active BOOLEAN DEFAULT 0,
-                subscription_plan TEXT,
-                subscription_end DATETIME,
-                devices_count INTEGER DEFAULT 0,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        ");
-
-        $db->exec("
-            CREATE TABLE IF NOT EXISTS payments (
-                id TEXT PRIMARY KEY,
-                user_id INTEGER NOT NULL,
-                amount REAL NOT NULL,
-                status TEXT DEFAULT 'pending',
-                yookassa_payment_id TEXT,
-                description TEXT,
-                payment_type TEXT DEFAULT 'topup',
-                subscription_plan TEXT,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (user_id) REFERENCES users(id)
-            )
-        ");
-
-        return $db;
-    } catch (Exception $e) {
-        error_log('Database initialization error: ' . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['error' => 'Database error: ' . $e->getMessage()]);
-        exit;
-    }
+    $db = new SQLite3($dbPath);
+    
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            telegram_id INTEGER UNIQUE NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            username TEXT,
+            balance REAL DEFAULT 0,
+            subscription_active BOOLEAN DEFAULT 0,
+            subscription_plan TEXT,
+            subscription_end DATETIME,
+            devices_count INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ");
+    
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS payments (
+            id TEXT PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            status TEXT DEFAULT 'pending',
+            yookassa_payment_id TEXT,
+            description TEXT,
+            payment_type TEXT DEFAULT 'topup',
+            subscription_plan TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ");
+    
+    return $db;
 }
 
 $db = initDb($dbPath);
@@ -226,35 +216,23 @@ switch ($action) {
 }
 
 function handleBalance($db) {
-    try {
-        $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
-
-        if (!$userId) {
-            http_response_code(400);
-            echo json_encode(['error' => 'userId required']);
-            return;
-        }
-
-        $user = getOrCreateUser($db, $userId);
-
-        if (!$user) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Failed to create user']);
-            return;
-        }
-
-        echo json_encode([
-            'balance' => number_format($user['balance'], 2, '.', ''),
-            'subscriptionActive' => (bool)$user['subscription_active'],
-            'subscriptionPlan' => $user['subscription_plan'],
-            'subscriptionEnd' => $user['subscription_end'],
-            'devicesCount' => $user['devices_count']
-        ]);
-    } catch (Exception $e) {
-        error_log('Balance error: ' . $e->getMessage());
-        http_response_code(500);
-        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
+    
+    if (!$userId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'userId required']);
+        return;
     }
+    
+    $user = getOrCreateUser($db, $userId);
+    
+    echo json_encode([
+        'balance' => number_format($user['balance'], 2, '.', ''),
+        'subscriptionActive' => (bool)$user['subscription_active'],
+        'subscriptionPlan' => $user['subscription_plan'],
+        'subscriptionEnd' => $user['subscription_end'],
+        'devicesCount' => $user['devices_count']
+    ]);
 }
 
 function handleSubscriptionCreate($db, $shopId, $secretKey) {
@@ -510,22 +488,15 @@ function handlePaymentCreate($db, $shopId, $secretKey) {
         return;
     }
 
-    // Load limits from admin config
-    $adminConfigPath = __DIR__ . '/admin_config.json';
-    $config = loadAdminConfig($adminConfigPath);
-    $prices = $config['prices'] ?? [];
-    $minTopUp = $prices['minTopUp'] ?? 50;
-    $maxTopUp = $prices['maxTopUp'] ?? 500;
-
-    if ($amount < $minTopUp) {
+    if ($amount < 50) {
         http_response_code(400);
-        echo json_encode(['error' => "Минимальная сумма: {$minTopUp} ₽"]);
+        echo json_encode(['error' => 'Минимальная сумма: 50 ₽']);
         return;
     }
 
-    if ($amount > $maxTopUp) {
+    if ($amount > 500) {
         http_response_code(400);
-        echo json_encode(['error' => "Максимальная сумма: {$maxTopUp} ₽"]);
+        echo json_encode(['error' => 'Максимальная сумма: 500 ₽']);
         return;
     }
     
@@ -727,80 +698,69 @@ function handleProfile($db) {
 }
 
 function handleCards($db) {
-    try {
-        $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
+    $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
 
-        if (!$userId) {
-            http_response_code(400);
-            echo json_encode(['error' => 'userId required']);
-            return;
-        }
+    if (!$userId) {
+        http_response_code(400);
+        echo json_encode(['error' => 'userId required']);
+        return;
+    }
 
-        $user = getOrCreateUser($db, $userId);
-        $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
-        $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
+    $user = getOrCreateUser($db, $userId);
+    $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
+    $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
 
-        // Load settings for dynamic URLs
-        $adminConfigPath = __DIR__ . '/admin_config.json';
-        $config = loadAdminConfig($adminConfigPath);
-        $settings = $config['settings'] ?? [];
+    // Load settings for dynamic URLs
+    $adminConfigPath = __DIR__ . '/admin_config.json';
+    $config = loadAdminConfig($adminConfigPath);
+    $settings = $config['settings'] ?? [];
 
-        $dataPath = __DIR__ . '/data.json';
-        if (!file_exists($dataPath)) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Failed to load cards']);
-            return;
-        }
+    $dataPath = __DIR__ . '/data.json';
+    if (!file_exists($dataPath)) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to load cards']);
+        return;
+    }
 
-        $jsonData = json_decode(file_get_contents($dataPath), true);
+    $jsonData = json_decode(file_get_contents($dataPath), true);
 
-        if (!$jsonData || !isset($jsonData['cards']) || !is_array($jsonData['cards'])) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Invalid cards data']);
-            return;
-        }
-
-        // Update cards with settings from admin_config
-        foreach ($jsonData['cards'] as &$card) {
-            if ($card['id'] === 'FlowStateWG') {
-                // Update WireGuard URLs from settings
-                if (!empty($settings['wgMsiUrl'])) {
-                    $card['instruction']['steps'][0]['links'][0]['url'] = $settings['wgMsiUrl'];
-                }
-                if (!empty($settings['wgConfigUrl'])) {
-                    $card['instruction']['steps'][1]['links'][0]['url'] = $settings['wgConfigUrl'];
-                }
-            } elseif ($card['id'] === 'FlowStateProxy') {
-                // Update proxy settings from admin_config
-                if (!empty($settings['proxyServer'])) {
-                    $proxyServer = $settings['proxyServer'];
-                    $proxyPort = $settings['proxyPort'] ?? '1080';
-                    $proxyUser = $settings['proxyUser'] ?? 'flowstateproxy';
-                    $proxyPass = $settings['proxyPass'] ?? '';
-                    $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$proxyServer}&port={$proxyPort}&user={$proxyUser}&pass={$proxyPass}";
-                }
+    // Update cards with settings from admin_config
+    foreach ($jsonData['cards'] as &$card) {
+        if ($card['id'] === 'FlowStateWG') {
+            // Update WireGuard URLs from settings
+            if (!empty($settings['wgMsiUrl'])) {
+                $card['instruction']['steps'][0]['links'][0]['url'] = $settings['wgMsiUrl'];
+            }
+            if (!empty($settings['wgConfigUrl'])) {
+                $card['instruction']['steps'][1]['links'][0]['url'] = $settings['wgConfigUrl'];
+            }
+        } elseif ($card['id'] === 'FlowStateProxy') {
+            // Update proxy settings from admin_config
+            if (!empty($settings['proxyServer'])) {
+                $server = $settings['proxyServer'];
+                $port = $settings['proxyPort'] ?? '1080';
+                $user = $settings['proxyUser'] ?? 'flowstateproxy';
+                $pass = $settings['proxyPass'] ?? '';
+                $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$server}&port={$port}&user={$user}&pass={$pass}";
             }
         }
-        unset($card);
-
-        $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
-            // Telegram Proxy доступен с telegram или full подпиской
-            if ($card['id'] === 'FlowStateProxy') return $hasTelegramAccess;
-            // AmneziaWG доступен только с full подпиской
-            if ($card['id'] === 'FlowStateWG') return $hasFullAccess;
-            return true;
-        });
-
-        echo json_encode([
-            'cards' => array_values($filteredCards),
-            'hasFullAccess' => $hasFullAccess,
-            'hasTelegramAccess' => $hasTelegramAccess,
-            'subscriptionPlan' => $user['subscription_plan']
-        ]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
     }
+    unset($card);
+
+    $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
+        // Telegram Proxy доступен с telegram или full подпиской
+        if ($card['id'] === 'FlowStateProxy') return $hasTelegramAccess;
+        // AmneziaWG доступен только с full подпиской
+        if ($card['id'] === 'FlowStateWG') return $hasFullAccess;
+        return true;
+    });
+
+    echo json_encode([
+        'cards' => array_values($filteredCards),
+        'hasFullAccess' => $hasFullAccess,
+        'hasTelegramAccess' => $hasTelegramAccess,
+        'subscriptionPlan' => $user['subscription_plan']
+    ]);
 }
 
 // Public price handler
