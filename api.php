@@ -488,15 +488,22 @@ function handlePaymentCreate($db, $shopId, $secretKey) {
         return;
     }
 
-    if ($amount < 50) {
+    // Load limits from admin config
+    $adminConfigPath = __DIR__ . '/admin_config.json';
+    $config = loadAdminConfig($adminConfigPath);
+    $prices = $config['prices'] ?? [];
+    $minTopUp = $prices['minTopUp'] ?? 50;
+    $maxTopUp = $prices['maxTopUp'] ?? 500;
+
+    if ($amount < $minTopUp) {
         http_response_code(400);
-        echo json_encode(['error' => 'Минимальная сумма: 50 ₽']);
+        echo json_encode(['error' => "Минимальная сумма: {$minTopUp} ₽"]);
         return;
     }
 
-    if ($amount > 500) {
+    if ($amount > $maxTopUp) {
         http_response_code(400);
-        echo json_encode(['error' => 'Максимальная сумма: 500 ₽']);
+        echo json_encode(['error' => "Максимальная сумма: {$maxTopUp} ₽"]);
         return;
     }
     

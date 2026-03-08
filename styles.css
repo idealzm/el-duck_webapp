@@ -1074,6 +1074,7 @@ code {
 
 .toast.success { border-color: var(--success); }
 .toast.error { border-color: var(--error); }
+.toast.payment-wait { border-color: var(--warning); }
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; }
