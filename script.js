@@ -491,7 +491,16 @@ let currentPrices = {
     telegramPrice: 99,
     fullPrice: 299,
     minTopUp: 50,
-    maxTopUp: 500
+    maxTopUp: 500,
+    billingCycle: 'month'
+};
+
+// Словарь периодов подписки
+const billingCycleLabels = {
+    'day': 'день',
+    'week': 'неделю',
+    'month': 'месяц',
+    'year': 'год'
 };
 
 // Загрузка цен из API
@@ -504,7 +513,8 @@ async function loadPrices() {
                 telegramPrice: data.telegramPrice || 99,
                 fullPrice: data.fullPrice || 299,
                 minTopUp: data.minTopUp || 50,
-                maxTopUp: data.maxTopUp || 500
+                maxTopUp: data.maxTopUp || 500,
+                billingCycle: data.billingCycle || 'month'
             };
             // Обновляем цены в модальном окне
             updatePricesInModal();
@@ -535,18 +545,28 @@ function updateTopUpLimits() {
 // Обновление цен в модальном окне
 function updatePricesInModal() {
     const telegramPriceEl = document.querySelector('.plan-card[data-plan="telegram"] .price-value');
+    const telegramPeriodEl = document.querySelector('.plan-card[data-plan="telegram"] .price-period');
     const telegramBtn = document.querySelector('.btn-plan-select[data-plan="telegram"]');
     const fullPriceEl = document.querySelector('.plan-card[data-plan="full"] .price-value');
+    const fullPeriodEl = document.querySelector('.plan-card[data-plan="full"] .price-period');
     const fullBtn = document.querySelector('.btn-plan-select[data-plan="full"]');
-    
+
+    const periodLabel = billingCycleLabels[currentPrices.billingCycle] || 'месяц';
+
     if (telegramPriceEl) {
         telegramPriceEl.textContent = currentPrices.telegramPrice;
+    }
+    if (telegramPeriodEl) {
+        telegramPeriodEl.textContent = `₽/${periodLabel}`;
     }
     if (telegramBtn) {
         telegramBtn.setAttribute('data-price', currentPrices.telegramPrice);
     }
     if (fullPriceEl) {
         fullPriceEl.textContent = currentPrices.fullPrice;
+    }
+    if (fullPeriodEl) {
+        fullPeriodEl.textContent = `₽/${periodLabel}`;
     }
     if (fullBtn) {
         fullBtn.setAttribute('data-price', currentPrices.fullPrice);

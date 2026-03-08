@@ -469,6 +469,7 @@ async function loadPrices() {
         document.getElementById('fullPrice').value = data.fullPrice || 299;
         document.getElementById('minTopUp').value = data.minTopUp || 50;
         document.getElementById('maxTopUp').value = data.maxTopUp || 500;
+        document.getElementById('billingCycle').value = data.billingCycle || 'month';
     } catch (error) {
         console.error('Load prices error:', error);
     }
@@ -480,13 +481,14 @@ async function savePrices() {
         telegramPrice: parseInt(document.getElementById('telegramPrice').value) || 99,
         fullPrice: parseInt(document.getElementById('fullPrice').value) || 299,
         minTopUp: parseInt(document.getElementById('minTopUp').value) || 50,
-        maxTopUp: parseInt(document.getElementById('maxTopUp').value) || 500
+        maxTopUp: parseInt(document.getElementById('maxTopUp').value) || 500,
+        billingCycle: document.getElementById('billingCycle').value
     };
 
     try {
         const session = sessionStorage.getItem('adminSession');
         const sessionData = session ? JSON.parse(session) : null;
-        
+
         const response = await fetch(`${API_BASE_URL}/admin/prices`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

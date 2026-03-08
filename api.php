@@ -770,7 +770,8 @@ function handlePrices($adminConfigPath) {
         'telegramPrice' => 99,
         'fullPrice' => 299,
         'minTopUp' => 50,
-        'maxTopUp' => 500
+        'maxTopUp' => 500,
+        'billingCycle' => 'month'
     ];
     
     echo json_encode($prices);
@@ -1080,15 +1081,15 @@ function handleAdminSettings($adminConfigPath, $config) {
         echo json_encode($settings);
         return;
     }
-    
+
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);
         return;
     }
-    
+
     $input = json_decode(file_get_contents('php://input'), true);
-    
+
     // Handle adminIds separately
     if (isset($input['adminIds'])) {
         $adminIds = array_map('trim', explode(',', $input['adminIds']));
@@ -1096,9 +1097,14 @@ function handleAdminSettings($adminConfigPath, $config) {
         $config['adminIds'] = $adminIds;
         unset($input['adminIds']);
     }
-    
+
+    // Handle siteEnabled as boolean
+    if (isset($input['siteEnabled'])) {
+        $input['siteEnabled'] = filter_var($input['siteEnabled'], FILTER_VALIDATE_BOOLEAN);
+    }
+
     $config['settings'] = array_merge($config['settings'] ?? [], $input);
-    
+
     if (saveAdminConfig($adminConfigPath, $config)) {
         echo json_encode(['success' => true]);
     } else {

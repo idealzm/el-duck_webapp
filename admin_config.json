@@ -4,7 +4,8 @@
         "telegramPrice": 99,
         "fullPrice": 299,
         "minTopUp": 50,
-        "maxTopUp": 500
+        "maxTopUp": 500,
+        "billingCycle": "month"
     },
     "settings": {
         "siteEnabled": true,
