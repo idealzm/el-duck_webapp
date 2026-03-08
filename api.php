@@ -705,69 +705,80 @@ function handleProfile($db) {
 }
 
 function handleCards($db) {
-    $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
+    try {
+        $userId = isset($_GET['userId']) ? (int)$_GET['userId'] : 0;
 
-    if (!$userId) {
-        http_response_code(400);
-        echo json_encode(['error' => 'userId required']);
-        return;
-    }
+        if (!$userId) {
+            http_response_code(400);
+            echo json_encode(['error' => 'userId required']);
+            return;
+        }
 
-    $user = getOrCreateUser($db, $userId);
-    $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
-    $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
+        $user = getOrCreateUser($db, $userId);
+        $hasFullAccess = $user['subscription_active'] && $user['subscription_plan'] === 'full';
+        $hasTelegramAccess = $user['subscription_active'] && ($user['subscription_plan'] === 'telegram' || $user['subscription_plan'] === 'full');
 
-    // Load settings for dynamic URLs
-    $adminConfigPath = __DIR__ . '/admin_config.json';
-    $config = loadAdminConfig($adminConfigPath);
-    $settings = $config['settings'] ?? [];
+        // Load settings for dynamic URLs
+        $adminConfigPath = __DIR__ . '/admin_config.json';
+        $config = loadAdminConfig($adminConfigPath);
+        $settings = $config['settings'] ?? [];
 
-    $dataPath = __DIR__ . '/data.json';
-    if (!file_exists($dataPath)) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to load cards']);
-        return;
-    }
+        $dataPath = __DIR__ . '/data.json';
+        if (!file_exists($dataPath)) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to load cards']);
+            return;
+        }
 
-    $jsonData = json_decode(file_get_contents($dataPath), true);
+        $jsonData = json_decode(file_get_contents($dataPath), true);
 
-    // Update cards with settings from admin_config
-    foreach ($jsonData['cards'] as &$card) {
-        if ($card['id'] === 'FlowStateWG') {
-            // Update WireGuard URLs from settings
-            if (!empty($settings['wgMsiUrl'])) {
-                $card['instruction']['steps'][0]['links'][0]['url'] = $settings['wgMsiUrl'];
-            }
-            if (!empty($settings['wgConfigUrl'])) {
-                $card['instruction']['steps'][1]['links'][0]['url'] = $settings['wgConfigUrl'];
-            }
-        } elseif ($card['id'] === 'FlowStateProxy') {
-            // Update proxy settings from admin_config
-            if (!empty($settings['proxyServer'])) {
-                $proxyServer = $settings['proxyServer'];
-                $proxyPort = $settings['proxyPort'] ?? '1080';
-                $proxyUser = $settings['proxyUser'] ?? 'flowstateproxy';
-                $proxyPass = $settings['proxyPass'] ?? '';
-                $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$proxyServer}&port={$proxyPort}&user={$proxyUser}&pass={$proxyPass}";
+        if (!$jsonData || !isset($jsonData['cards']) || !is_array($jsonData['cards'])) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Invalid cards data']);
+            return;
+        }
+
+        // Update cards with settings from admin_config
+        foreach ($jsonData['cards'] as &$card) {
+            if ($card['id'] === 'FlowStateWG') {
+                // Update WireGuard URLs from settings
+                if (!empty($settings['wgMsiUrl'])) {
+                    $card['instruction']['steps'][0]['links'][0]['url'] = $settings['wgMsiUrl'];
+                }
+                if (!empty($settings['wgConfigUrl'])) {
+                    $card['instruction']['steps'][1]['links'][0]['url'] = $settings['wgConfigUrl'];
+                }
+            } elseif ($card['id'] === 'FlowStateProxy') {
+                // Update proxy settings from admin_config
+                if (!empty($settings['proxyServer'])) {
+                    $proxyServer = $settings['proxyServer'];
+                    $proxyPort = $settings['proxyPort'] ?? '1080';
+                    $proxyUser = $settings['proxyUser'] ?? 'flowstateproxy';
+                    $proxyPass = $settings['proxyPass'] ?? '';
+                    $card['instruction']['steps'][0]['links'][0]['url'] = "https://t.me/socks?server={$proxyServer}&port={$proxyPort}&user={$proxyUser}&pass={$proxyPass}";
+                }
             }
         }
+        unset($card);
+
+        $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
+            // Telegram Proxy доступен с telegram или full подпиской
+            if ($card['id'] === 'FlowStateProxy') return $hasTelegramAccess;
+            // AmneziaWG доступен только с full подпиской
+            if ($card['id'] === 'FlowStateWG') return $hasFullAccess;
+            return true;
+        });
+
+        echo json_encode([
+            'cards' => array_values($filteredCards),
+            'hasFullAccess' => $hasFullAccess,
+            'hasTelegramAccess' => $hasTelegramAccess,
+            'subscriptionPlan' => $user['subscription_plan']
+        ]);
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
     }
-    unset($card);
-
-    $filteredCards = array_filter($jsonData['cards'], function($card) use ($hasTelegramAccess, $hasFullAccess) {
-        // Telegram Proxy доступен с telegram или full подпиской
-        if ($card['id'] === 'FlowStateProxy') return $hasTelegramAccess;
-        // AmneziaWG доступен только с full подпиской
-        if ($card['id'] === 'FlowStateWG') return $hasFullAccess;
-        return true;
-    });
-
-    echo json_encode([
-        'cards' => array_values($filteredCards),
-        'hasFullAccess' => $hasFullAccess,
-        'hasTelegramAccess' => $hasTelegramAccess,
-        'subscriptionPlan' => $user['subscription_plan']
-    ]);
 }
 
 // Public price handler

@@ -206,11 +206,16 @@ async function loadUserBalance() {
 
     if (!currentUser || !balanceValue) return;
 
+    console.log('=== Load User Balance ===');
+    console.log('currentUser.id:', currentUser.id);
+
     try {
         const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        console.log('Balance response status:', response.status);
 
         if (response.ok) {
             const data = await response.json();
+            console.log('Balance data:', data);
             balanceValue.textContent = parseFloat(data.balance || 0).toFixed(2);
 
             if (devicesCount) {
@@ -220,6 +225,7 @@ async function loadUserBalance() {
             // Update subscription UI
             updateSubscriptionUI(data);
         } else {
+            console.warn('Balance API returned error');
             // Backend not available - use demo mode
             if (balanceValue) balanceValue.textContent = '0.00';
             updateSubscriptionUI({ subscriptionActive: false, subscriptionPlan: null, subscriptionEnd: null });
@@ -869,20 +875,28 @@ async function loadCards() {
         return;
     }
 
+    console.log('=== Load Cards ===');
+    console.log('currentUser:', currentUser);
+
     try {
         // Try to load from API with user ID
         let data;
-        
+
         if (currentUser && currentUser.id) {
+            console.log('Fetching cards from API with userId:', currentUser.id);
             const response = await fetch(`${API_BASE_URL}/cards?userId=${currentUser.id}`);
+            console.log('Response status:', response.status);
 
             if (response.ok) {
                 data = await response.json();
+                console.log('Cards data:', data);
             } else {
+                console.warn('API returned error, falling back to local file');
                 // Fallback to local file
                 data = await loadCardsFromLocal();
             }
         } else {
+            console.log('No user, loading from local file');
             // No user - load from local
             data = await loadCardsFromLocal();
         }
@@ -890,6 +904,7 @@ async function loadCards() {
         container.innerHTML = '';
 
         if (!data || !data.cards || !Array.isArray(data.cards)) {
+            console.error('Invalid data format:', data);
             container.innerHTML = '<p style="color: var(--text-secondary);">Ошибка: неверный формат данных</p>';
             return;
         }
