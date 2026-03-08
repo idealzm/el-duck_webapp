@@ -82,7 +82,7 @@ async function initTelegramLoginWidget() {
     try {
         const response = await fetch(`${API_BASE_URL}/admin/bot-config`);
         const data = await response.json();
-        const botUsername = data.botUsername || 'your_bot';
+        const botUsername = data.botUsername || 'idealzmtestbot';
         
         // Create script element for Telegram widget
         const script = document.createElement('script');
