@@ -451,17 +451,13 @@ function switchSection(sectionName) {
 }
 
 // Top Up Modal
-let selectedAmount = null;
-
 function openTopUpModal() {
     const modal = document.getElementById('topUpModal');
     if (modal) {
         modal.classList.add('active');
         document.body.classList.add('modal-open');
-        selectedAmount = null;
-        updateSelectedAmount();
     }
-    
+
     if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
         tg.HapticFeedback.impactOccurred('light');
     }
@@ -540,34 +536,6 @@ function updateTopUpLimits() {
     if (topUpPaymentNote) {
         topUpPaymentNote.textContent = `Минимальная сумма: ${currentPrices.minTopUp} ₽ | Максимальная: ${currentPrices.maxTopUp} ₽`;
     }
-    
-    // Обновляем кнопки быстрых сумм
-    updateAmountPresets();
-}
-
-// Обновление кнопок быстрых сумм
-function updateAmountPresets() {
-    const presets = document.querySelectorAll('.amount-preset');
-    const minAmount = currentPrices.minTopUp;
-    const maxAmount = currentPrices.maxTopUp;
-    
-    // Стандартные значения
-    const defaultPresets = [100, 300, 500];
-    
-    presets.forEach((preset, index) => {
-        // Если пресет выходит за рамки лимитов, скрываем или корректируем
-        const presetAmount = parseInt(preset.dataset.amount);
-        
-        if (presetAmount < minAmount) {
-            // Если меньше минимума, устанавливаем минимальное
-            preset.dataset.amount = minAmount;
-            preset.textContent = `${minAmount} ₽`;
-        } else if (presetAmount > maxAmount) {
-            // Если больше максимума, устанавливаем максимальное
-            preset.dataset.amount = maxAmount;
-            preset.textContent = `${maxAmount} ₽`;
-        }
-    });
 }
 
 // Обновление цен в модальном окне
@@ -745,34 +713,6 @@ function payBalanceSubscription(plan, price, payBtn) {
     .finally(() => {
         payBtn.classList.remove('loading');
     });
-}
-
-function updateSelectedAmount() {
-    const presets = document.querySelectorAll('.amount-preset');
-    const customInput = document.getElementById('customAmount');
-    
-    presets.forEach(preset => {
-        preset.classList.remove('selected');
-        if (selectedAmount && preset.dataset.amount === selectedAmount.toString()) {
-            preset.classList.add('selected');
-            customInput.value = '';
-        }
-    });
-    
-    if (customInput.value && customInput.value !== selectedAmount?.toString()) {
-        presets.forEach(p => p.classList.remove('selected'));
-    }
-}
-
-function getSelectedAmount() {
-    const customInput = document.getElementById('customAmount');
-    const customValue = parseFloat(customInput.value);
-
-    if (customValue && customValue >= currentPrices.minTopUp) {
-        return customValue;
-    }
-
-    return selectedAmount || 0;
 }
 
 // Create YooKassa payment
@@ -1369,23 +1309,15 @@ document.addEventListener('DOMContentLoaded', () => {
         refreshBalanceBtn.addEventListener('click', refreshBalance);
     }
     
-    // Amount presets
-    document.querySelectorAll('.amount-preset').forEach(preset => {
-        preset.addEventListener('click', () => {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-            selectedAmount = parseInt(preset.dataset.amount);
-            updateSelectedAmount();
-        });
-    });
-    
-    // Custom amount input
+    // Custom amount input validation
     const customAmountInput = document.getElementById('customAmount');
     if (customAmountInput) {
-        customAmountInput.addEventListener('input', () => {
-            selectedAmount = null;
-            document.querySelectorAll('.amount-preset').forEach(p => p.classList.remove('selected'));
+        customAmountInput.addEventListener('input', function() {
+            // Validate input
+            const value = parseFloat(this.value);
+            if (isNaN(value)) {
+                this.value = '';
+            }
         });
     }
     
@@ -1393,7 +1325,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const payBtn = document.getElementById('payBtn');
     if (payBtn) {
         payBtn.addEventListener('click', () => {
-            const amount = getSelectedAmount();
+            const customInput = document.getElementById('customAmount');
+            const amount = parseFloat(customInput.value);
             createPayment(amount);
         });
     }
