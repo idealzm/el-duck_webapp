@@ -8,6 +8,7 @@ const configService = require('../services/configService');
 const userService = require('../services/userService');
 const paymentService = require('../services/paymentService');
 const { requireAdmin } = require('../middleware/auth');
+const { getDb } = require('../database/init');
 
 /**
  * POST /api/admin/auth - Login
