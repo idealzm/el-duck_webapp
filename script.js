@@ -386,20 +386,23 @@ async function manualPaymentCheck() {
 function updateSubscriptionUI(data) {
     const statusBlock = document.getElementById('subscriptionStatusBlock');
     const subscriptionEnd = document.getElementById('subscriptionEnd');
-    
+    const noSubscriptionBanner = document.getElementById('noSubscriptionBanner');
+    const cardsContainer = document.getElementById('cardsContainer');
+
     if (!statusBlock) return;
-    
+
     const isActive = data.subscriptionActive;
     const plan = data.subscriptionPlan;
     const endDate = data.subscriptionEnd;
-    
+
+    // Update profile subscription status
     if (isActive) {
         statusBlock.classList.add('active');
         statusBlock.querySelector('.status-icon').textContent = '✅';
-        
+
         const planName = plan === 'telegram' ? 'Telegram' : 'Полный';
         statusBlock.querySelector('.status-text').textContent = `${planName} доступ`;
-        
+
         if (subscriptionEnd) {
             const date = new Date(endDate);
             subscriptionEnd.textContent = date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
@@ -410,9 +413,20 @@ function updateSubscriptionUI(data) {
         statusBlock.classList.remove('active');
         statusBlock.querySelector('.status-icon').textContent = '❌';
         statusBlock.querySelector('.status-text').textContent = 'Не активна';
-        
+
         if (subscriptionEnd) {
             subscriptionEnd.textContent = '—';
+        }
+    }
+
+    // Update VPN section banner
+    if (noSubscriptionBanner && cardsContainer) {
+        if (isActive) {
+            noSubscriptionBanner.style.display = 'none';
+            cardsContainer.style.display = 'flex';
+        } else {
+            noSubscriptionBanner.style.display = 'flex';
+            cardsContainer.style.display = 'none';
         }
     }
 }
@@ -928,22 +942,6 @@ async function loadCards() {
             return;
         }
 
-        // Проверка подписки для показа плашки
-        const hasSubscription = data.hasFullAccess || data.hasTelegramAccess;
-        
-        // Если нет подписки вообще - показываем плашку
-        if (!hasSubscription) {
-            const noSubscriptionBanner = document.createElement('div');
-            noSubscriptionBanner.className = 'no-subscription-banner';
-            noSubscriptionBanner.innerHTML = `
-                <div class="banner-icon">🔒</div>
-                <div class="banner-title">Нет активной подписки</div>
-                <div class="banner-text">Оформите подписку для доступа к VPN и Telegram Proxy</div>
-                <button class="btn btn-primary" onclick="openSubscriptionModal()">Оформить подписку</button>
-            `;
-            container.appendChild(noSubscriptionBanner);
-        }
-
         const sortedCards = [...data.cards].sort((a, b) => {
             const aHasNew = a.title && a.title.includes('NEW!');
             const bHasNew = b.title && b.title.includes('NEW!');
@@ -954,14 +952,6 @@ async function loadCards() {
         });
 
         sortedCards.forEach(card => {
-            // Фильтрация карточек по подписке
-            if (card.id === 'FlowStateWG' && !data.hasFullAccess) {
-                return; // Пропускаем AmneziaWG без full подписки
-            }
-            if (card.id === 'FlowStateProxy' && !data.hasTelegramAccess) {
-                return; // Пропускаем Telegram Proxy без telegram/full подписки
-            }
-
             if (card.instruction) {
                 instructionsData[card.id] = card.instruction;
             }
@@ -1368,6 +1358,12 @@ document.addEventListener('DOMContentLoaded', () => {
         subscribeBtn.addEventListener('click', openSubscriptionModal);
     }
 
+    // Subscribe button in profile card
+    const subscribeBtnCard = document.getElementById('subscribeBtnCard');
+    if (subscribeBtnCard) {
+        subscribeBtnCard.addEventListener('click', openSubscriptionModal);
+    }
+
     // Plan select buttons
     document.querySelectorAll('.btn-plan-select').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -1414,19 +1410,7 @@ document.addEventListener('DOMContentLoaded', () => {
             createPayment(amount);
         });
     }
-    
-    // Support button
-    const supportBtn = document.getElementById('supportBtn');
-    if (supportBtn) {
-        supportBtn.addEventListener('click', () => {
-            if (tg && tg.openLink && typeof tg.openLink === 'function') {
-                tg.openLink('https://t.me/your_support_username');
-            } else {
-                window.open('https://t.me/your_support_username', '_blank');
-            }
-        });
-    }
-    
+
     // Touch/mouse handlers for modals
     const modalEl = document.getElementById('instructionModal');
     let touchStartY = 0;
