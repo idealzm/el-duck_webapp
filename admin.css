@@ -137,11 +137,16 @@
     flex-shrink: 0;
     width: 24px;
     height: 24px;
-    filter: invert(1);
 }
 
-.nav-item.active svg {
-    filter: invert(0);
+.nav-item svg path,
+.nav-item svg circle {
+    stroke: #fff;
+}
+
+.nav-item.active svg path,
+.nav-item.active svg circle {
+    stroke: #000;
 }
 
 .sidebar-footer {
