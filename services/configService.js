@@ -7,7 +7,6 @@ const fs = require('fs');
 const path = require('path');
 
 const ADMIN_CONFIG_PATH = path.join(__dirname, '..', 'admin_config.json');
-const BOT_CONFIG_PATH = path.join(__dirname, '..', 'bot_config.json');
 const SESSIONS_PATH = path.join(__dirname, '..', 'admin_sessions.json');
 
 /**
@@ -15,7 +14,7 @@ const SESSIONS_PATH = path.join(__dirname, '..', 'admin_sessions.json');
  */
 function loadAdminConfig() {
   const defaultConfig = {
-    adminIds: ['729705340'],
+    adminIds: [process.env.ADMIN_TELEGRAM_ID || '729705340'],
     prices: {
       telegramPrice: 99,
       fullPrice: 299,
@@ -34,7 +33,7 @@ function loadAdminConfig() {
       proxyPass: ''
     }
   };
-  
+
   try {
     if (fs.existsSync(ADMIN_CONFIG_PATH)) {
       const data = fs.readFileSync(ADMIN_CONFIG_PATH, 'utf8');
@@ -50,7 +49,7 @@ function loadAdminConfig() {
   } catch (error) {
     console.error('Error loading admin config:', error.message);
   }
-  
+
   return defaultConfig;
 }
 
@@ -68,37 +67,17 @@ function saveAdminConfig(config) {
 }
 
 /**
- * Load bot configuration
+ * Get bot token from environment variable
  */
-function loadBotConfig() {
-  const defaultConfig = {
-    botToken: '',
-    botUsername: ''
-  };
-  
-  try {
-    if (fs.existsSync(BOT_CONFIG_PATH)) {
-      const data = fs.readFileSync(BOT_CONFIG_PATH, 'utf8');
-      return JSON.parse(data);
-    }
-  } catch (error) {
-    console.error('Error loading bot config:', error.message);
-  }
-  
-  return defaultConfig;
+function getBotToken() {
+  return process.env.BOT_TOKEN || '';
 }
 
 /**
- * Save bot configuration
+ * Get bot username from environment variable
  */
-function saveBotConfig(config) {
-  try {
-    fs.writeFileSync(BOT_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
-    return true;
-  } catch (error) {
-    console.error('Error saving bot config:', error.message);
-    return false;
-  }
+function getBotUsername() {
+  return process.env.BOT_USERNAME || '';
 }
 
 /**
@@ -259,8 +238,8 @@ function cleanupSessions() {
 module.exports = {
   loadAdminConfig,
   saveAdminConfig,
-  loadBotConfig,
-  saveBotConfig,
+  getBotToken,
+  getBotUsername,
   isAdmin,
   getPrices,
   updatePrices,

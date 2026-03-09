@@ -6,3 +6,7 @@ database.db-shm
 admin_sessions.json
 *.log
 .DS_Store
+
+# Config files with secrets
+bot_config.json
+admin_config.json

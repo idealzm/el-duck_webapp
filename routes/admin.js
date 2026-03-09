@@ -4,11 +4,16 @@
 
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const configService = require('../services/configService');
 const userService = require('../services/userService');
 const paymentService = require('../services/paymentService');
 const { requireAdmin } = require('../middleware/auth');
 const { getDb } = require('../database/init');
+const { generateToken, csrfProtection } = require('../middleware/csrf');
+
+// Apply CSRF protection to mutating routes
+const csrf = csrfProtection({ excludePaths: ['/api/admin/config', '/api/admin/auth', '/api/admin/check'] });
 
 /**
  * POST /api/admin/auth - Login
@@ -25,7 +30,7 @@ router.post('/auth', (req, res) => {
       return res.status(403).json({ error: 'Access denied. Not an admin.' });
     }
 
-    const token = `admin_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const token = `admin_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
     configService.createSession(token, telegramId);
 
     res.json({
@@ -36,6 +41,24 @@ router.post('/auth', (req, res) => {
   } catch (error) {
     console.error('Admin auth error:', error);
     res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+/**
+ * GET /api/admin/config - Get admin config (bot username for login widget)
+ */
+router.get('/config', (req, res) => {
+  try {
+    const telegramId = req.query.telegramId;
+    const csrfToken = telegramId ? generateToken(String(telegramId)) : generateToken('anonymous');
+    
+    res.json({
+      botUsername: configService.getBotUsername(),
+      csrfToken
+    });
+  } catch (error) {
+    console.error('Get admin config error:', error);
+    res.status(500).json({ error: 'Failed to get config' });
   }
 });
 
@@ -105,7 +128,7 @@ router.post('/prices', requireAdmin, (req, res) => {
 /**
  * POST /api/admin/prices/save - Save prices
  */
-router.post('/prices/save', requireAdmin, (req, res) => {
+router.post('/prices/save', requireAdmin, csrf, (req, res) => {
   try {
     const { telegramPrice, fullPrice, minTopUp, maxTopUp, billingCycle } = req.body;
     
@@ -171,19 +194,37 @@ router.post('/settings', requireAdmin, (req, res) => {
 /**
  * POST /api/admin/settings/save - Save settings
  */
-router.post('/settings/save', requireAdmin, (req, res) => {
+router.post('/settings/save', requireAdmin, csrf, (req, res) => {
   try {
-    const { 
-      siteEnabled, 
-      maintenanceMessage, 
-      wgConfigUrl, 
-      wgMsiUrl, 
-      proxyServer, 
-      proxyPort, 
-      proxyUser, 
+    const {
+      siteEnabled,
+      maintenanceMessage,
+      wgConfigUrl,
+      wgMsiUrl,
+      proxyServer,
+      proxyPort,
+      proxyUser,
       proxyPass,
       adminIds
     } = req.body;
+
+    // Validate URLs if provided
+    const isValidUrl = (url) => {
+      if (!url) return true; // Empty is OK
+      try {
+        new URL(url);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (wgConfigUrl && !isValidUrl(wgConfigUrl)) {
+      return res.status(400).json({ error: 'Invalid WireGuard config URL' });
+    }
+    if (wgMsiUrl && !isValidUrl(wgMsiUrl)) {
+      return res.status(400).json({ error: 'Invalid Windows installer URL' });
+    }
 
     const newSettings = {
       siteEnabled: Boolean(siteEnabled),
@@ -221,7 +262,7 @@ router.post('/settings/save', requireAdmin, (req, res) => {
 /**
  * POST /api/admin/user/balance - Update user balance
  */
-router.post('/user/balance', requireAdmin, (req, res) => {
+router.post('/user/balance', requireAdmin, csrf, (req, res) => {
   try {
     const { telegramId, amount, operation } = req.body;
 
@@ -252,7 +293,7 @@ router.post('/user/balance', requireAdmin, (req, res) => {
 /**
  * POST /api/admin/user/subscription - Update subscription
  */
-router.post('/user/subscription', requireAdmin, (req, res) => {
+router.post('/user/subscription', requireAdmin, csrf, (req, res) => {
   try {
     const { telegramId, plan, endDate } = req.body;
 
@@ -289,7 +330,7 @@ router.post('/user/subscription', requireAdmin, (req, res) => {
 /**
  * POST /api/admin/user/delete - Delete user
  */
-router.post('/user/delete', requireAdmin, (req, res) => {
+router.post('/user/delete', requireAdmin, csrf, (req, res) => {
   try {
     const { telegramId } = req.body;
 

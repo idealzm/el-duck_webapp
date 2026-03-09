@@ -1,4 +1,7 @@
 {
-    "botToken": "8372342055:AAHfEZV4Z0LSQxsizMwI_ZYG4lTxtzgOObc",
-    "botUsername": "idealzmtestbot"
+  "_comment": "Этот файл устарел. Используйте переменные окружения в .env:",
+  "_comment_2": "BOT_TOKEN=your_bot_token",
+  "_comment_3": "BOT_USERNAME=your_bot_username",
+  "botToken": "",
+  "botUsername": ""
 }

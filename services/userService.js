@@ -25,17 +25,17 @@ function getOrCreateUser(telegramId, userData = {}) {
       INSERT INTO users (telegram_id, first_name, last_name, username, balance)
       VALUES (:telegram_id, :first_name, :last_name, :username, 0)
     `);
-    
+
     insert.run({
       ':telegram_id': telegramId,
-      ':first_name': userData.firstName || '',
-      ':last_name': userData.lastName || '',
-      ':username': userData.username || ''
+      ':first_name': (userData.firstName || '').substring(0, 100),
+      ':last_name': (userData.lastName || '').substring(0, 100),
+      ':username': (userData.username || '').substring(0, 100)
     });
     insert.free();
-    
+
     saveDatabase();
-    
+
     const select = db.prepare('SELECT * FROM users WHERE telegram_id = :telegram_id');
     select.bind({ ':telegram_id': telegramId });
     if (select.step()) {
@@ -43,7 +43,7 @@ function getOrCreateUser(telegramId, userData = {}) {
     }
     select.free();
   }
-  
+
   return user;
 }
 

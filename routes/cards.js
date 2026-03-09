@@ -18,17 +18,17 @@ const DATA_FILE = path.join(__dirname, '..', 'data.json');
 router.get('/', (req, res) => {
   try {
     const userId = req.query.userId ? parseInt(req.query.userId) : null;
-    
+
     let hasFullAccess = false;
     let hasTelegramAccess = false;
-    
+
     // Если передан userId, проверяем подписку
     if (userId) {
       try {
         const db = getDb();
         const stmt = db.prepare('SELECT subscription_active, subscription_plan FROM users WHERE telegram_id = :telegram_id');
         stmt.bind({ ':telegram_id': userId });
-        
+
         if (stmt.step()) {
           const user = stmt.getAsObject();
           if (user.subscription_active) {
@@ -46,17 +46,26 @@ router.get('/', (req, res) => {
         // Игнорируем ошибку БД, возвращаем без подписки
       }
     }
-    
-    if (!fs.existsSync(DATA_FILE)) {
-      return res.json({ 
-        cards: [],
-        hasFullAccess,
-        hasTelegramAccess
-      });
-    }
 
-    const data = fs.readFileSync(DATA_FILE, 'utf8');
-    const config = JSON.parse(data);
+    let config = { cards: [] };
+    
+    try {
+      if (!fs.existsSync(DATA_FILE)) {
+        return res.json({
+          cards: [],
+          hasFullAccess,
+          hasTelegramAccess
+        });
+      }
+
+      const data = fs.readFileSync(DATA_FILE, 'utf8');
+      config = JSON.parse(data);
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Error reading data.json:', error);
+      }
+      // Return empty cards on error
+    }
 
     res.json({
       ...config,

@@ -12,6 +12,7 @@ let selectedUser = null;
 let allUsers = [];
 let allSubscriptions = [];
 let settings = {};
+let csrfToken = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -57,12 +58,67 @@ function getSessionData() {
     return session ? JSON.parse(session) : null;
 }
 
+// Helper function for API requests with CSRF token
+async function apiRequest(url, options = {}) {
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+    };
+    
+    // Add CSRF token for mutating requests
+    if (['POST', 'PUT', 'DELETE'].includes(options.method?.toUpperCase())) {
+        headers['X-CSRF-Token'] = csrfToken || '';
+    }
+    
+    const response = await fetch(url, { ...options, headers });
+    
+    // If CSRF token was invalid, try to get a new one and retry
+    if (response.status === 403) {
+        const data = await response.json();
+        if (data.error === 'Invalid or missing CSRF token') {
+            // Fetch new CSRF token
+            try {
+                const configResponse = await fetch(`${API_BASE_URL}/admin/config`);
+                if (configResponse.ok) {
+                    const configData = await configResponse.json();
+                    csrfToken = configData.csrfToken;
+                    
+                    // Retry with new token
+                    headers['X-CSRF-Token'] = csrfToken;
+                    return await fetch(url, { ...options, headers });
+                }
+            } catch (e) {
+                console.error('Failed to refresh CSRF token:', e);
+            }
+        }
+    }
+    
+    return response;
+}
+
 // Initialize Telegram Login Widget
-function initTelegramLoginWidget() {
+async function initTelegramLoginWidget() {
+    // Fetch bot username and CSRF token from server
+    let botUsername = 'idealzmtestbot'; // Default fallback
+    try {
+        const response = await fetch(`${API_BASE_URL}/admin/config`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.botUsername) {
+                botUsername = data.botUsername;
+            }
+            if (data.csrfToken) {
+                csrfToken = data.csrfToken;
+            }
+        }
+    } catch (error) {
+        console.error('Failed to fetch bot username:', error);
+    }
+
     const script = document.createElement('script');
     script.async = true;
     script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', 'idealzmtestbot');
+    script.setAttribute('data-telegram-login', botUsername);
     script.setAttribute('data-size', 'large');
     script.setAttribute('data-radius', '12');
     script.setAttribute('data-request-access', 'write');
@@ -209,7 +265,7 @@ async function loadUsers() {
     const sessionData = getSessionData();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/users`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -360,7 +416,7 @@ async function savePrices() {
     };
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/prices/save`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/prices/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -388,8 +444,8 @@ async function loadSubscriptions() {
     const sessionData = getSessionData();
 
     try {
-        // First load settings to get billing cycle
-        const settingsResponse = await fetch(`${API_BASE_URL}/admin/settings`, {
+        // First load prices to get billing cycle
+        const pricesResponse = await fetch(`${API_BASE_URL}/admin/prices`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -399,9 +455,9 @@ async function loadSubscriptions() {
         });
         
         let billingCycle = 'month';
-        if (settingsResponse.ok) {
-            const settings = await settingsResponse.json();
-            billingCycle = settings.billingCycle || 'month';
+        if (pricesResponse.ok) {
+            const prices = await pricesResponse.json();
+            billingCycle = prices.billingCycle || 'month';
         }
 
         const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
@@ -539,7 +595,7 @@ async function saveSettings() {
     console.log('Settings:', newSettings);
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/settings/save`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/settings/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -640,7 +696,7 @@ async function updateBalance(action) {
     const sessionData = getSessionData();
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/user/balance`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/user/balance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -675,7 +731,7 @@ async function updateSubscription() {
     const sessionData = getSessionData();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/user/subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -713,7 +769,7 @@ async function deleteUser() {
     const sessionData = getSessionData();
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/user/delete`, {
+        const response = await apiRequest(`${API_BASE_URL}/admin/user/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

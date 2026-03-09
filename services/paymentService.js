@@ -1,232 +1,140 @@
 /**
- * Payment Service
- * Handles YooKassa integration and payment operations
+ * Payment Service (Legacy Compatibility Layer)
+ * @deprecated Use YooKassaService, PaymentRepository, and SubscriptionService directly
  */
 
-const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
 const { getDb, saveDatabase } = require('../database/init');
+const YooKassaService = require('./yookassaService');
+const PaymentRepository = require('./paymentRepository');
+const SubscriptionService = require('./subscriptionService');
 
 const YOOKASSA_SHOP_ID = process.env.YOOKASSA_SHOP_ID;
 const YOOKASSA_SECRET_KEY = process.env.YOOKASSA_SECRET_KEY;
-const YOOKASSA_BASE_URL = 'https://api.yookassa.ru/v3';
+
+// Lazy-loaded service instances
+let yookassaService = null;
+let paymentRepository = null;
+let subscriptionService = null;
+
+function getYookassaService() {
+  if (!yookassaService) {
+    yookassaService = new YooKassaService(YOOKASSA_SHOP_ID, YOOKASSA_SECRET_KEY);
+  }
+  return yookassaService;
+}
+
+function getPaymentRepository() {
+  if (!paymentRepository) {
+    paymentRepository = new PaymentRepository(getDb, saveDatabase);
+  }
+  return paymentRepository;
+}
+
+function getSubscriptionService() {
+  if (!subscriptionService) {
+    const userService = require('./userService');
+    subscriptionService = new SubscriptionService(userService);
+  }
+  return subscriptionService;
+}
+
+// ==================== DEPRECATED FUNCTIONS (Backward Compatibility) ====================
 
 /**
- * Create YooKassa payment
+ * @deprecated Use YooKassaService.createPayment()
  */
 async function createYooKassaPayment(amount, description, returnUrl) {
-  const paymentId = uuidv4();
-  
-  const authString = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
-  
-  const payload = {
-    amount: {
-      value: amount.toFixed(2),
-      currency: 'RUB'
-    },
-    confirmation: {
-      type: 'redirect',
-      return_url: returnUrl
-    },
-    capture: true,
-    description: description
-  };
-  
-  try {
-    const response = await axios.post(`${YOOKASSA_BASE_URL}/payments`, payload, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotence-Key': paymentId,
-        'Authorization': `Basic ${authString}`
-      }
-    });
-    
-    return {
-      paymentId,
-      yookassaId: response.data.id,
-      confirmationUrl: response.data.confirmation.confirmation_url,
-      amount
-    };
-  } catch (error) {
-    console.error('YooKassa API error:', error.response?.data || error.message);
-    throw new Error(error.response?.data?.description || 'YooKassa payment creation failed');
-  }
+  return getYookassaService().createPayment(amount, description, returnUrl);
 }
 
 /**
- * Get YooKassa payment status
+ * @deprecated Use YooKassaService.getPaymentStatus()
  */
 async function getYooKassaPaymentStatus(yookassaPaymentId) {
-  const authString = Buffer.from(`${YOOKASSA_SHOP_ID}:${YOOKASSA_SECRET_KEY}`).toString('base64');
-  
-  try {
-    const response = await axios.get(`${YOOKASSA_BASE_URL}/payments/${yookassaPaymentId}`, {
-      headers: {
-        'Authorization': `Basic ${authString}`
-      }
-    });
-    
-    return response.data.status;
-  } catch (error) {
-    console.error('YooKassa API error:', error.response?.data || error.message);
-    throw new Error('Failed to get payment status');
-  }
+  return getYookassaService().getPaymentStatus(yookassaPaymentId);
 }
 
 /**
- * Create payment record in database
+ * @deprecated Use PaymentRepository.create()
  */
 function createPaymentRecord(userId, amount, description, paymentType = 'topup', subscriptionPlan = null) {
-  const db = getDb();
-  const paymentId = `pay_${uuidv4()}`;
-  
-  const stmt = db.prepare(`
-    INSERT INTO payments (id, user_id, amount, status, description, payment_type, subscription_plan)
-    VALUES (:id, :user_id, :amount, 'pending', :description, :payment_type, :subscription_plan)
-  `);
-  
-  stmt.run({
-    ':id': paymentId,
-    ':user_id': userId,
-    ':amount': amount,
-    ':description': description,
-    ':payment_type': paymentType,
-    ':subscription_plan': subscriptionPlan
-  });
-  stmt.free();
-  
-  saveDatabase();
-  
-  return paymentId;
+  return getPaymentRepository().create(userId, amount, description, paymentType, subscriptionPlan);
 }
 
 /**
- * Get payment by ID
+ * @deprecated Use PaymentRepository.findById()
  */
 function getPaymentById(paymentId) {
-  const db = getDb();
-  const stmt = db.prepare('SELECT * FROM payments WHERE id = :id');
-  stmt.bind({ ':id': paymentId });
-  
-  let payment = null;
-  if (stmt.step()) {
-    payment = stmt.getAsObject();
-  }
-  stmt.free();
-  
-  return payment;
+  return getPaymentRepository().findById(paymentId);
 }
 
 /**
- * Get payment by YooKassa ID
+ * @deprecated Use PaymentRepository.findByYooKassaId()
  */
 function getPaymentByYooKassaId(yookassaPaymentId) {
-  const db = getDb();
-  const stmt = db.prepare('SELECT * FROM payments WHERE yookassa_payment_id = :yookassa_id');
-  stmt.bind({ ':yookassa_id': yookassaPaymentId });
-  
-  let payment = null;
-  if (stmt.step()) {
-    payment = stmt.getAsObject();
-  }
-  stmt.free();
-  
-  return payment;
+  return getPaymentRepository().findByYooKassaId(yookassaPaymentId);
 }
 
 /**
- * Update payment status
+ * @deprecated Use PaymentRepository.updateStatus()
  */
 function updatePaymentStatus(paymentId, status) {
-  const db = getDb();
-  const stmt = db.prepare(`
-    UPDATE payments 
-    SET status = :status, updated_at = CURRENT_TIMESTAMP 
-    WHERE id = :id
-  `);
-  
-  stmt.run({ ':status': status, ':id': paymentId });
-  stmt.free();
-  saveDatabase();
+  getPaymentRepository().updateStatus(paymentId, status);
 }
 
 /**
- * Update payment YooKassa ID
+ * @deprecated Use PaymentRepository.updateYooKassaId()
  */
 function updatePaymentYooKassaId(paymentId, yookassaId) {
-  const db = getDb();
-  const stmt = db.prepare(`
-    UPDATE payments 
-    SET yookassa_payment_id = :yookassa_id, updated_at = CURRENT_TIMESTAMP 
-    WHERE id = :id
-  `);
-  
-  stmt.run({ ':yookassa_id': yookassaId, ':id': paymentId });
-  stmt.free();
-  saveDatabase();
+  getPaymentRepository().updateYooKassaId(paymentId, yookassaId);
+}
+
+/**
+ * @deprecated Use PaymentRepository.getAll()
+ */
+function getAllPayments() {
+  return getPaymentRepository().getAll();
+}
+
+/**
+ * @deprecated Use SubscriptionService.calculateEndDate()
+ */
+function calculateSubscriptionEnd(user) {
+  return getSubscriptionService().calculateEndDate(user);
 }
 
 /**
  * Process successful payment
+ * @deprecated Use SubscriptionService directly
  */
 function processSuccessfulPayment(payment) {
-  const db = getDb();
   const userService = require('./userService');
-
-  // Update payment status
-  updatePaymentStatus(payment.id, 'succeeded');
+  getPaymentRepository().updateStatus(payment.id, 'succeeded');
 
   if (payment.payment_type === 'subscription') {
-    // Activate subscription
     const user = userService.getUserById(payment.user_id);
-    
-    // Calculate subscription end date
-    let subscriptionEnd = new Date();
-
-    if (user.subscription_active && user.subscription_end) {
-      // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
-      const endDateStr = user.subscription_end.includes('T') 
-        ? user.subscription_end 
-        : user.subscription_end.replace(' ', 'T');
-      const endDate = new Date(endDateStr);
-      
-      if (endDate > new Date()) {
-        // Extend from current end date
-        subscriptionEnd = new Date(endDate);
-        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-      } else {
-        // End date is in the past, start from now
-        subscriptionEnd = new Date();
-        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-      }
-    } else {
-      // New subscription from now
-      subscriptionEnd = new Date();
-      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-    }
-
+    const subscriptionEnd = getSubscriptionService().calculateEndDate(user);
     userService.activateSubscription(payment.user_id, payment.subscription_plan, subscriptionEnd.toISOString());
   } else {
-    // Top up balance
     userService.updateBalance(payment.user_id, payment.amount);
   }
 }
 
 /**
  * Create subscription payment
+ * @deprecated Use new service classes directly
  */
 async function createSubscriptionPayment(userId, plan, amount, description) {
   const userService = require('./userService');
   const user = userService.getOrCreateUser(userId);
-  
+
   const domain = process.env.DOMAIN || 'http://localhost:3000';
   const returnUrl = `${domain}/api/subscription/success?paymentId={paymentId}`;
-  
-  const yooKassaResult = await createYooKassaPayment(amount, description, returnUrl);
-  
-  const paymentId = createPaymentRecord(user.id, amount, description, 'subscription', plan);
-  updatePaymentYooKassaId(paymentId, yooKassaResult.yookassaId);
-  
+
+  const yooKassaResult = await getYookassaService().createPayment(amount, description, returnUrl);
+  const paymentId = getPaymentRepository().create(user.id, amount, description, 'subscription', plan);
+  getPaymentRepository().updateYooKassaId(paymentId, yooKassaResult.yookassaId);
+
   return {
     payment_id: paymentId,
     confirmation_url: yooKassaResult.confirmationUrl,
@@ -237,31 +145,31 @@ async function createSubscriptionPayment(userId, plan, amount, description) {
 
 /**
  * Create top-up payment
+ * @deprecated Use new service classes directly
  */
 async function createTopUpPayment(userId, amount, description = 'Пополнение баланса') {
   const userService = require('./userService');
   const user = userService.getOrCreateUser(userId);
-  
+
   // Validate amount
   const config = require('../config/adminConfig');
   const prices = config.getPrices();
-  
+
   if (amount < prices.minTopUp) {
     throw new Error(`Минимальная сумма: ${prices.minTopUp} ₽`);
   }
-  
+
   if (amount > prices.maxTopUp) {
     throw new Error(`Максимальная сумма: ${prices.maxTopUp} ₽`);
   }
-  
+
   const domain = process.env.DOMAIN || 'http://localhost:3000';
   const returnUrl = `${domain}/api/payment/success?paymentId={paymentId}`;
-  
-  const yooKassaResult = await createYooKassaPayment(amount, description, returnUrl);
-  
-  const paymentId = createPaymentRecord(user.id, amount, description, 'topup');
-  updatePaymentYooKassaId(paymentId, yooKassaResult.yookassaId);
-  
+
+  const yooKassaResult = await getYookassaService().createPayment(amount, description, returnUrl);
+  const paymentId = getPaymentRepository().create(user.id, amount, description, 'topup');
+  getPaymentRepository().updateYooKassaId(paymentId, yooKassaResult.yookassaId);
+
   return {
     payment_id: paymentId,
     confirmation_url: yooKassaResult.confirmationUrl,
@@ -271,53 +179,27 @@ async function createTopUpPayment(userId, amount, description = 'Пополне�
 
 /**
  * Pay for subscription from balance
+ * @deprecated Use SubscriptionService.activateFromBalance()
  */
 function paySubscriptionFromBalance(userId, plan, amount) {
   const userService = require('./userService');
   const user = userService.getUserByTelegramId(userId);
-  
+
   if (!user) {
     throw new Error('User not found');
   }
-  
+
   if (user.balance < amount) {
     throw new Error('Недостаточно средств на балансе');
   }
-  
+
   const validPlans = ['telegram', 'full'];
   if (!validPlans.includes(plan)) {
     throw new Error('Неверный тип подписки');
   }
-  
-  // Calculate subscription end date
-  let subscriptionEnd = new Date();
 
-  if (user.subscription_active && user.subscription_end) {
-    // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
-    const endDateStr = user.subscription_end.includes('T') 
-      ? user.subscription_end 
-      : user.subscription_end.replace(' ', 'T');
-    const endDate = new Date(endDateStr);
-    
-    if (endDate > new Date()) {
-      // Extend from current end date
-      subscriptionEnd = new Date(endDate);
-      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-    } else {
-      // End date is in the past, start from now
-      subscriptionEnd = new Date();
-      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-    }
-  } else {
-    // New subscription from now
-    subscriptionEnd = new Date();
-    subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
-  }
-  
   const db = getDb();
-  
-  // Create payment record
-  const paymentId = `pay_balance_${uuidv4()}`;
+  const paymentId = `pay_balance_${require('uuid').v4()}`;
   const stmt = db.prepare(`
     INSERT INTO payments (id, user_id, amount, status, description, payment_type, subscription_plan)
     VALUES (:id, :user_id, :amount, 'succeeded', 'Подписка (оплата с баланса)', 'subscription', :plan)
@@ -329,15 +211,14 @@ function paySubscriptionFromBalance(userId, plan, amount) {
     ':plan': plan
   });
   stmt.free();
-  
-  // Deduct from balance
+
   userService.updateBalance(user.id, -amount);
-  
-  // Activate subscription
+
+  const subscriptionEnd = getSubscriptionService().calculateEndDate(user);
   userService.activateSubscription(user.id, plan, subscriptionEnd.toISOString());
-  
+
   saveDatabase();
-  
+
   return {
     success: true,
     message: 'Подписка активирована',
@@ -346,28 +227,10 @@ function paySubscriptionFromBalance(userId, plan, amount) {
   };
 }
 
-/**
- * Get all payments (for admin)
- */
-function getAllPayments() {
-  const db = getDb();
-  const stmt = db.prepare(`
-    SELECT p.*, u.telegram_id, u.first_name, u.username
-    FROM payments p
-    LEFT JOIN users u ON p.user_id = u.id
-    ORDER BY p.created_at DESC
-  `);
-  
-  const payments = [];
-  while (stmt.step()) {
-    payments.push(stmt.getAsObject());
-  }
-  stmt.free();
-  
-  return payments;
-}
+// ==================== EXPORTS ====================
 
 module.exports = {
+  // Legacy exports for backward compatibility
   createYooKassaPayment,
   getYooKassaPaymentStatus,
   createPaymentRecord,
@@ -379,5 +242,11 @@ module.exports = {
   createSubscriptionPayment,
   createTopUpPayment,
   paySubscriptionFromBalance,
-  getAllPayments
+  getAllPayments,
+  calculateSubscriptionEnd,
+
+  // New service exports
+  getYookassaService,
+  getPaymentRepository,
+  getSubscriptionService
 };

@@ -74,16 +74,20 @@ npm install --production
 ### Создание .env файла
 ```bash
 cat > .env << EOF
-YOOKASSA_SHOP_ID=1293384
-YOOKASSA_SECRET_KEY=test_RuhTK6Gu2CTA-1m_wiLd6rC9pNGfgLncVzgi_0NpaJM
+YOOKASSA_SHOP_ID=your_shop_id
+YOOKASSA_SECRET_KEY=your_secret_key
 PORT=3000
 HOST=0.0.0.0
 NODE_ENV=production
 DOMAIN=https://dev.el-duck.ru
-ADMIN_TELEGRAM_ID=729705340
-SESSION_SECRET=el-duck-secret-key-change-in-production
+ADMIN_TELEGRAM_ID=your_telegram_id
+SESSION_SECRET=your_random_secure_string
+BOT_TOKEN=your_bot_token
+BOT_USERNAME=your_bot_username
 EOF
 ```
+
+⚠️ **Важно:** Замените значения на реальные! Тестовые ключи YooKassa используйте только для тестирования.
 
 ### Создание директории для логов
 ```bash

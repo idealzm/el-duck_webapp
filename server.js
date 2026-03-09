@@ -24,29 +24,55 @@ const adminRoutes = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0'; // Слушать все интерфейсы
+const HOST = process.env.HOST || '0.0.0.0';
+
+const { RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX_REQUESTS, ALLOWED_DOMAINS } = require('./constants');
+
+// Simple rate limiting middleware
+const rateLimitStore = new Map();
+
+function rateLimiter(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!rateLimitStore.has(ip)) {
+    rateLimitStore.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+    return next();
+  }
+  
+  const record = rateLimitStore.get(ip);
+  
+  if (now > record.resetTime) {
+    // Reset window
+    record.count = 1;
+    record.resetTime = now + RATE_LIMIT_WINDOW_MS;
+    return next();
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    res.setHeader('Retry-After', Math.ceil((record.resetTime - now) / 1000));
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  
+  record.count++;
+  next();
+}
+
+// Apply rate limiting to API routes
+app.use('/api/', rateLimiter);
 
 // Middleware
 const corsOptions = {
   origin: function (origin, callback) {
     // Разрешить все запросы без origin (Telegram WebApp, мобильные приложения)
     if (!origin) return callback(null, true);
-    
+
     // Разрешённые домены
-    const allowedDomains = [
-      'https://dev.el-duck.ru',
-      'http://localhost:3000',
-      'https://t.me',
-      'https://telegram.org',
-      'android-app://org.telegram.messenger',
-      'ios-app://686446520'
-    ];
-    
-    if (allowedDomains.indexOf(origin) !== -1 || origin.includes('telegram.org')) {
+    if (ALLOWED_DOMAINS.indexOf(origin) !== -1 || origin.includes('telegram.org')) {
       callback(null, true);
     } else {
       console.warn('CORS blocked origin:', origin);
-      callback(null, true); // Всё равно разрешаем для отладки
+      callback(null, false); // Блокировать неизвестные домены
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

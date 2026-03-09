@@ -30,28 +30,33 @@ function validateFields(...fields) {
 function validateNumeric(field, options = {}) {
   return (req, res, next) => {
     const value = req.body[field] || req.query[field];
-    
+
     if (value === undefined || value === null) {
       if (options.required) {
         return res.status(400).json({ error: `${field} is required` });
       }
       return next();
     }
-    
+
     const num = Number(value);
-    
-    if (isNaN(num)) {
-      return res.status(400).json({ error: `${field} must be a number` });
+
+    if (isNaN(num) || !isFinite(num)) {
+      return res.status(400).json({ error: `${field} must be a valid number` });
     }
-    
+
     if (options.min !== undefined && num < options.min) {
       return res.status(400).json({ error: `${field} must be at least ${options.min}` });
     }
-    
+
     if (options.max !== undefined && num > options.max) {
       return res.status(400).json({ error: `${field} must be at most ${options.max}` });
     }
-    
+
+    // Check for negative numbers if not allowed
+    if (options.allowNegative === false && num < 0) {
+      return res.status(400).json({ error: `${field} must be positive` });
+    }
+
     next();
   };
 }

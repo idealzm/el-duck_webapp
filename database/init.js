@@ -76,6 +76,7 @@ async function initDatabase() {
   
   // Create indexes for better performance
   db.run('CREATE INDEX IF NOT EXISTS idx_users_telegram ON users(telegram_id)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_users_subscription ON users(subscription_active, subscription_plan)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payments_yookassa ON payments(yookassa_payment_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status)');
@@ -89,14 +90,21 @@ async function initDatabase() {
 }
 
 /**
- * Save database to disk
+ * Save database to disk (async with debounce)
  */
+let saveTimeout = null;
 function saveDatabase() {
-  if (db) {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    fs.writeFileSync(DB_PATH, buffer);
-  }
+  if (saveTimeout) clearTimeout(saveTimeout);
+  saveTimeout = setTimeout(async () => {
+    if (db) {
+      try {
+        const data = db.export();
+        await fs.promises.writeFile(DB_PATH, Buffer.from(data));
+      } catch (error) {
+        console.error('Database save error:', error);
+      }
+    }
+  }, 100);
 }
 
 /**

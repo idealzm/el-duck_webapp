@@ -1,3 +1,12 @@
+// Import utilities
+const { ApiClient } = require('./api/apiClient');
+const { SUBSCRIPTION_PLANS, PAYMENT_CHECK_INITIAL_DELAY_MS, PAYMENT_CHECK_INTERVAL_MS, PAYMENT_CHECK_TIMEOUT_MS, MODAL_ANIMATION_DURATION_MS } = require('./constants');
+const SubscriptionHelper = require('./utils/subscriptionHelper');
+const UserMapper = require('./utils/userMapper');
+const TypeUtils = require('./utils/typeUtils');
+const ErrorHandler = require('./utils/errorHandler');
+const ModalManager = require('./utils/modalManager');
+
 // Telegram Web App initialization
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
@@ -12,7 +21,7 @@ const APP_VERSION = '1.0.3';
 (function checkAppVersion() {
     const storedVersion = localStorage.getItem('appVersion');
     console.log('App version check:', { current: APP_VERSION, stored: storedVersion });
-    
+
     if (storedVersion && storedVersion !== APP_VERSION) {
         console.log('Version changed, clearing cache and reloading...');
         localStorage.clear();
@@ -21,7 +30,7 @@ const APP_VERSION = '1.0.3';
         window.location.href = window.location.pathname + '?v=' + APP_VERSION;
         return;
     }
-    
+
     localStorage.setItem('appVersion', APP_VERSION);
 })();
 
@@ -1075,6 +1084,183 @@ async function loadCardsFromLocal() {
     }
 }
 
+// ==================== INSTRUCTION RENDERER ====================
+
+/**
+ * Render instruction step based on type
+ * @param {Object} step - Step object
+ * @param {Object} instruction - Parent instruction object
+ * @returns {string} HTML string
+ */
+function renderStep(step, instruction) {
+    if (!step) return '';
+
+    const renderers = {
+        links: renderLinksStep,
+        copy: renderCopyStep,
+        list: renderListStep,
+        text: renderTextStep
+    };
+
+    const renderer = renderers[step.type] || renderTextStep;
+    return renderer(step, instruction);
+}
+
+/**
+ * Render links step
+ */
+function renderLinksStep(step, instruction) {
+    const linkButtons = step.links
+        .filter(link => link?.url)
+        .map(link => createLinkButton(link, instruction))
+        .join('');
+
+    return `
+        <h4>${escapeHtml(step.title)}</h4>
+        ${step.text ? `<p class="platform-text">${parseMarkdown(step.text)}</p>` : ''}
+        <div class="platforms-grid">${linkButtons}</div>
+    `;
+}
+
+/**
+ * Create link button HTML
+ */
+function createLinkButton(link, instruction) {
+    const { url, name, download } = link;
+    const isRawGithub = url.includes('raw.githubusercontent.com');
+    const isGithubRelease = url.includes('/releases/download/');
+    const hasDownload = instruction.download === true || download === true || isRawGithub || isGithubRelease;
+    const downloadAttr = hasDownload ? ' download' : '';
+    const targetAttr = hasDownload ? '' : ' target="_blank" rel="noopener noreferrer"';
+    
+    return `<a href="${escapeHtml(url)}"${downloadAttr}${targetAttr} class="platform-btn">${escapeHtml(name)}</a>`;
+}
+
+/**
+ * Render copy step
+ */
+function renderCopyStep(step) {
+    const copyButtons = step.items
+        .filter(item => item?.text)
+        .map(item => {
+            const copyText = item.text;
+            const buttonLabel = item.label ? escapeHtml(item.label) : 'Скопировать';
+            const encodedText = encodeURIComponent(copyText);
+            return `<button class="copy-btn" data-copy="${encodedText}"><span class="icon">📋</span>${buttonLabel}</button>`;
+        })
+        .join('');
+
+    return `
+        <h4>${escapeHtml(step.title)}</h4>
+        ${step.text ? `<p class="platform-text">${parseMarkdown(step.text)}</p>` : ''}
+        <div class="platforms-grid">${copyButtons}</div>
+    `;
+}
+
+/**
+ * Render list step
+ */
+function renderListStep(step) {
+    let listHtml = '';
+    let currentSection = [];
+    let currentSubtitle = '';
+
+    (step.items || []).forEach(item => {
+        if (!item) return;
+
+        const subtitleMatch = item.match(/^### (.+)$/);
+        if (subtitleMatch) {
+            if (currentSection.length > 0) {
+                listHtml += `<ol>${currentSection.map(i => `<li>${parseMarkdown(i || '')}</li>`).join('')}</ol>`;
+                currentSection = [];
+            }
+            currentSubtitle = subtitleMatch[1];
+            listHtml += `<h5>${escapeHtml(currentSubtitle)}</h5>`;
+        } else {
+            currentSection.push(item);
+        }
+    });
+
+    if (currentSection.length > 0) {
+        listHtml += `<ol>${currentSection.map(i => `<li>${parseMarkdown(i || '')}</li>`).join('')}</ol>`;
+    }
+
+    return `
+        <h4>${escapeHtml(step.title)}</h4>
+        ${listHtml}
+    `;
+}
+
+/**
+ * Render text step
+ */
+function renderTextStep(step) {
+    return `
+        <h4>${escapeHtml(step.title)}</h4>
+        <p>${parseMarkdown(step.text || '')}</p>
+    `;
+}
+
+/**
+ * Build instruction footer HTML
+ */
+function buildInstructionFooter(footer) {
+    if (!footer) return '';
+    
+    if (typeof footer === 'string') {
+        return `<p class="instruction-footer-text">${escapeHtml(footer)}</p>`;
+    }
+    
+    if (typeof footer === 'object') {
+        return `
+            <p class="instruction-footer-text">${escapeHtml(footer.text || '')}</p>
+            ${footer.buttonText ? `<button class="btn btn-footer" onclick="finishInstruction()">${escapeHtml(footer.buttonText)}</button>` : ''}
+        `;
+    }
+    
+    return '';
+}
+
+/**
+ * Setup instruction event listeners
+ */
+function setupInstructionListeners(instructionBody) {
+    // Link buttons
+    instructionBody.querySelectorAll('.platform-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            triggerHaptic('light');
+        });
+    });
+
+    // Copy buttons
+    instructionBody.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            triggerHaptic('light');
+            const encodedText = btn.getAttribute('data-copy');
+            if (encodedText) {
+                copyToClipboard(decodeURIComponent(encodedText));
+            }
+        });
+    });
+
+    // Footer buttons
+    const footerBtn = instructionBody.querySelector('.btn-footer');
+    if (footerBtn) {
+        footerBtn.addEventListener('click', () => {
+            triggerHaptic('light');
+        });
+    }
+}
+
+/**
+ * Trigger haptic feedback
+ */
+function triggerHaptic(type = 'light') {
+    if (tg?.HapticFeedback?.impactOccurred) {
+        tg.HapticFeedback.impactOccurred(type);
+    }
+}
+
 // Open instruction modal
 function openInstruction(cardId) {
     const instruction = instructionsData[cardId];
@@ -1093,143 +1279,33 @@ function openInstruction(cardId) {
 
     instructionTitle.textContent = instruction.title || 'Инструкция';
 
+    // Build steps HTML
     let stepsHtml = '';
-
     if (!instruction.steps || !Array.isArray(instruction.steps)) {
         stepsHtml = '<p>Инструкция недоступна</p>';
     } else {
-        instruction.steps.forEach((step, index) => {
-            if (!step) return;
-
-            if (step.type === 'links' && step.links) {
-                const linkButtons = step.links
-                    .filter(link => link && link.url)
-                    .map(link => {
-                        const url = escapeHtml(link.url);
-                        const name = escapeHtml(link.name);
-                        const isRawGithub = url.includes('raw.githubusercontent.com');
-                        const isGithubRelease = url.includes('/releases/download/');
-                        const hasDownload = instruction.download === true || link.download === true || isRawGithub || isGithubRelease;
-                        const downloadAttr = hasDownload ? ' download' : '';
-                        const targetAttr = hasDownload ? '' : ' target="_blank" rel="noopener noreferrer"';
-                        return `<a href="${url}"${downloadAttr}${targetAttr} class="platform-btn">${name}</a>`;
-                    })
-                    .join('');
-
-                stepsHtml += `
-                    <h4>${escapeHtml(step.title)}</h4>
-                    ${step.text ? `<p class="platform-text">${parseMarkdown(step.text)}</p>` : ''}
-                    <div class="platforms-grid">${linkButtons}</div>
-                `;
-            }
-            else if (step.type === 'copy' && step.items) {
-                const copyButtons = step.items
-                    .filter(item => item && item.text)
-                    .map((item) => {
-                        const copyText = item.text;
-                        const buttonLabel = item.label ? escapeHtml(item.label) : 'Скопировать';
-                        const encodedText = encodeURIComponent(copyText);
-                        return `<button class="copy-btn" data-copy="${encodedText}"><span class="icon">📋</span>${buttonLabel}</button>`;
-                    })
-                    .join('');
-
-                stepsHtml += `
-                    <h4>${escapeHtml(step.title)}</h4>
-                    ${step.text ? `<p class="platform-text">${parseMarkdown(step.text)}</p>` : ''}
-                    <div class="platforms-grid">${copyButtons}</div>
-                `;
-            }
-            else if (step.type === 'list' || step.items) {
-                let listHtml = '';
-                let currentSection = [];
-                let currentSubtitle = '';
-
-                (step.items || []).forEach(item => {
-                    if (!item) return;
-
-                    const subtitleMatch = item.match(/^### (.+)$/);
-                    if (subtitleMatch) {
-                        if (currentSection.length > 0) {
-                            listHtml += `<ol>${currentSection.map(i => `<li>${parseMarkdown(i || '')}</li>`).join('')}</ol>`;
-                            currentSection = [];
-                        }
-                        currentSubtitle = subtitleMatch[1];
-                        listHtml += `<h5>${escapeHtml(currentSubtitle)}</h5>`;
-                    } else {
-                        currentSection.push(item);
-                    }
-                });
-
-                if (currentSection.length > 0) {
-                    listHtml += `<ol>${currentSection.map(i => `<li>${parseMarkdown(i || '')}</li>`).join('')}</ol>`;
-                }
-
-                stepsHtml += `
-                    <h4>${escapeHtml(step.title)}</h4>
-                    ${listHtml}
-                `;
-            }
-            else if (step.type === 'text') {
-                stepsHtml += `
-                    <h4>${escapeHtml(step.title)}</h4>
-                    <p>${parseMarkdown(step.text || '')}</p>
-                `;
-            }
-        });
+        stepsHtml = instruction.steps
+            .filter(Boolean)
+            .map(step => renderStep(step, instruction))
+            .join('');
     }
 
-    let footerHtml = '';
-    if (instruction.footer) {
-        if (typeof instruction.footer === 'string') {
-            footerHtml = `<p class="instruction-footer-text">${escapeHtml(instruction.footer)}</p>`;
-        } else if (typeof instruction.footer === 'object') {
-            footerHtml = `
-                <p class="instruction-footer-text">${escapeHtml(instruction.footer.text || '')}</p>
-                ${instruction.footer.buttonText ? `<button class="btn btn-footer" onclick="finishInstruction()">${escapeHtml(instruction.footer.buttonText)}</button>` : ''}
-            `;
-        }
-    }
+    // Build footer HTML
+    const footerHtml = buildInstructionFooter(instruction.footer);
 
     instructionBody.innerHTML = `${stepsHtml}${footerHtml}`;
 
-    instructionBody.querySelectorAll('.platform-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-        });
-    });
+    // Setup event listeners
+    setupInstructionListeners(instructionBody);
 
-    instructionBody.querySelectorAll('.copy-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-            const encodedText = btn.getAttribute('data-copy');
-            if (encodedText) {
-                copyToClipboard(decodeURIComponent(encodedText));
-            }
-        });
-    });
-
-    const footerBtn = instructionBody.querySelector('.btn-footer');
-    if (footerBtn) {
-        footerBtn.addEventListener('click', () => {
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('light');
-            }
-        });
-    }
-
+    // Open modal
     const modal = document.getElementById('instructionModal');
     if (modal) {
         modal.classList.add('active');
         document.body.classList.add('modal-open');
     }
 
-    if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-        tg.HapticFeedback.impactOccurred('light');
-    }
+    triggerHaptic('light');
 }
 
 function finishInstruction() {
@@ -1513,6 +1589,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, { passive: false });
     }
+    
+    // Cleanup timers on page unload
+    window.addEventListener('beforeunload', () => {
+        stopPaymentCheck();
+    });
 });
 
 console.log('Telegram Web App initialized');
