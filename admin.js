@@ -82,28 +82,35 @@ async function loadCsrfToken() {
 // Helper function for API requests with CSRF token
 async function apiRequest(url, options = {}) {
     const headers = {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
+        'Content-Type': 'application/json'
     };
-    
+
     // Add CSRF token for mutating requests
     if (['POST', 'PUT', 'DELETE'].includes(options.method?.toUpperCase())) {
         headers['X-CSRF-Token'] = csrfToken || '';
     }
-    
+
+    // Merge with user-provided headers
+    if (options.headers) {
+        Object.assign(headers, options.headers);
+    }
+
     const response = await fetch(url, { ...options, headers });
-    
+
     // If CSRF token was invalid, try to get a new one and retry
     if (response.status === 403) {
         const data = await response.json();
         if (data.error === 'Invalid or missing CSRF token') {
             // Fetch new CSRF token
             try {
-                const configResponse = await fetch(`${API_BASE_URL}/admin/config`);
+                const sessionData = getSessionData();
+                const telegramId = sessionData?.id || 'anonymous';
+                const configResponse = await fetch(`${API_BASE_URL}/admin/config?telegramId=${telegramId}`);
                 if (configResponse.ok) {
                     const configData = await configResponse.json();
                     csrfToken = configData.csrfToken;
-                    
+                    console.log('CSRF token refreshed');
+
                     // Retry with new token
                     headers['X-CSRF-Token'] = csrfToken;
                     return await fetch(url, { ...options, headers });
@@ -113,7 +120,7 @@ async function apiRequest(url, options = {}) {
             }
         }
     }
-    
+
     return response;
 }
 
