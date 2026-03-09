@@ -388,6 +388,22 @@ async function loadSubscriptions() {
     const sessionData = getSessionData();
 
     try {
+        // First load settings to get billing cycle
+        const settingsResponse = await fetch(`${API_BASE_URL}/admin/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
+        });
+        
+        let billingCycle = 'month';
+        if (settingsResponse.ok) {
+            const settings = await settingsResponse.json();
+            billingCycle = settings.billingCycle || 'month';
+        }
+
         const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -405,14 +421,14 @@ async function loadSubscriptions() {
         document.getElementById('telegramSubscriptions').textContent = allSubscriptions.filter(s => s.subscription_plan === 'telegram').length;
         document.getElementById('fullSubscriptions').textContent = allSubscriptions.filter(s => s.subscription_plan === 'full').length;
 
-        renderSubscriptions(allSubscriptions);
+        renderSubscriptions(allSubscriptions, billingCycle);
     } catch (error) {
         console.error('Load subscriptions error:', error);
     }
 }
 
 // Render subscriptions
-function renderSubscriptions(subscriptions) {
+function renderSubscriptions(subscriptions, billingCycle = 'month') {
     const list = document.getElementById('subscriptionsList');
     if (!list) return;
 
@@ -420,6 +436,9 @@ function renderSubscriptions(subscriptions) {
         list.innerHTML = '<p class="empty-message">Активных подписок нет</p>';
         return;
     }
+
+    // Don't show end date if billing cycle is daily
+    const showEndDate = billingCycle !== 'day';
 
     list.innerHTML = subscriptions.map(sub => {
         const icon = sub.subscription_plan === 'telegram' ? '✈️' : '🚀';
@@ -434,7 +453,7 @@ function renderSubscriptions(subscriptions) {
         const now = new Date();
         const isActive = endDate && endDate > now;
         
-        const displayEndDate = endDate 
+        const displayEndDate = showEndDate && endDate
             ? endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
             : '—';
         
@@ -446,7 +465,7 @@ function renderSubscriptions(subscriptions) {
             <div class="subscription-item">
                 <div class="subscription-info">
                     <div class="subscription-user">${icon} ${escapeHtml(displayName)}</div>
-                    <div class="subscription-details">${planName} • До ${displayEndDate}</div>
+                    <div class="subscription-details">${planName}${showEndDate ? ` • До ${displayEndDate}` : ''}</div>
                 </div>
                 <span class="subscription-status ${isActive ? 'active' : 'expired'}">${isActive ? 'Активна' : 'Истекла'}</span>
             </div>
