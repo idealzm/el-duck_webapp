@@ -15,7 +15,10 @@ let settings = {};
 let csrfToken = null;
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Load CSRF token first
+    await loadCsrfToken();
+    
     initTelegramLoginWidget();
     checkSession();
 
@@ -56,6 +59,24 @@ document.addEventListener('DOMContentLoaded', () => {
 function getSessionData() {
     const session = sessionStorage.getItem('adminSession');
     return session ? JSON.parse(session) : null;
+}
+
+// Load CSRF token
+async function loadCsrfToken() {
+    try {
+        const sessionData = getSessionData();
+        const telegramId = sessionData?.id || 'anonymous';
+        const response = await fetch(`${API_BASE_URL}/admin/config?telegramId=${telegramId}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.csrfToken) {
+                csrfToken = data.csrfToken;
+                console.log('CSRF token loaded successfully');
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load CSRF token:', error);
+    }
 }
 
 // Helper function for API requests with CSRF token
