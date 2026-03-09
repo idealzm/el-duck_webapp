@@ -1,32 +1,5 @@
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
-:root {
-    --bg-primary: #0f0f0f;
-    --bg-secondary: #1a1a1a;
-    --text-primary: #ffffff;
-    --text-secondary: #a0a0a0;
-    --text-muted: #666666;
-    --accent: #00d4aa;
-    --accent-gradient: linear-gradient(135deg, #00d4aa 0%, #00a896 100%);
-    --success: #00ff88;
-    --warning: #ffb800;
-    --error: #ff4757;
-    --error-bg: rgba(255, 71, 87, 0.1);
-    --border: #333333;
-    --border-light: #444444;
-}
-
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    line-height: 1.6;
-    min-height: 100vh;
-}
+/* Admin Panel Specific Styles */
+/* Общие стили берутся из styles.css */
 
 /* Login Screen */
 .login-screen {
@@ -77,31 +50,6 @@ body {
     margin-bottom: 24px;
     color: var(--error);
     font-size: 14px;
-}
-
-.btn-telegram-login {
-    width: 100%;
-    padding: 16px 24px;
-    border-radius: 14px;
-    background: #229ED9;
-    color: white;
-    border: none;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    transition: background 0.2s;
-}
-
-.btn-telegram-login:hover {
-    background: #1b8ac0;
-}
-
-.btn-telegram-login:active {
-    background: #1575a3;
 }
 
 .login-note {
@@ -203,6 +151,7 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    overflow: hidden;
 }
 
 .admin-avatar {
@@ -216,6 +165,7 @@ body {
     font-size: 16px;
     font-weight: 600;
     color: #000;
+    flex-shrink: 0;
 }
 
 .admin-details {
