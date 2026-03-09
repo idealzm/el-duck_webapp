@@ -209,96 +209,102 @@ router.post('/stats', requireAdmin, (req, res) => {
  * POST /api/admin/user/balance
  * Update user balance
  */
-router.post('/user/balance', requireAdmin, 
-  validateFields('userId', 'balance'),
-  validateNumeric('balance', { required: true, min: 0 }),
-  (req, res) => {
-    try {
-      const { userId, balance } = req.body;
-      
-      const user = userService.getUserById(parseInt(userId));
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      userService.setBalance(parseInt(userId), parseFloat(balance));
-      
-      res.json({ 
-        success: true, 
-        message: 'Balance updated',
-        newBalance: parseFloat(balance).toFixed(2)
-      });
-    } catch (error) {
-      console.error('Update balance error:', error);
-      res.status(500).json({ error: 'Failed to update balance' });
+router.post('/user/balance', requireAdmin, (req, res) => {
+  try {
+    // Frontend sends telegramId (user's), backend expects userId
+    const { telegramId, amount, operation } = req.body;
+
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId is required' });
     }
+
+    // Find user by telegram ID
+    const user = userService.getUserByTelegramId(parseInt(telegramId));
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update balance based on operation
+    const balanceChange = operation === 'add' ? Math.abs(amount) : -Math.abs(amount);
+    userService.updateBalance(user.id, balanceChange);
+
+    res.json({
+      success: true,
+      message: 'Balance updated',
+      newBalance: (user.balance + balanceChange).toFixed(2)
+    });
+  } catch (error) {
+    console.error('Update balance error:', error);
+    res.status(500).json({ error: 'Failed to update balance' });
   }
-);
+});
 
 /**
  * POST /api/admin/user/subscription
  * Update user subscription
  */
-router.post('/user/subscription', requireAdmin,
-  validateFields('userId'),
-  (req, res) => {
-    try {
-      const { userId, active, plan, endDate } = req.body;
-      
-      const user = userService.getUserById(parseInt(userId));
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      if (active === false) {
-        userService.deactivateSubscription(parseInt(userId));
-        res.json({ success: true, message: 'Subscription deactivated' });
-      } else {
-        const newPlan = plan || user.subscription_plan;
-        const newEndDate = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-        
-        userService.activateSubscription(parseInt(userId), newPlan, newEndDate);
-        res.json({ 
-          success: true, 
-          message: 'Subscription updated',
-          plan: newPlan,
-          endDate: newEndDate
-        });
-      }
-    } catch (error) {
-      console.error('Update subscription error:', error);
-      res.status(500).json({ error: 'Failed to update subscription' });
+router.post('/user/subscription', requireAdmin, (req, res) => {
+  try {
+    const { telegramId, plan, endDate } = req.body;
+
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId is required' });
     }
+
+    const user = userService.getUserByTelegramId(parseInt(telegramId));
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (plan === 'none' || req.body.active === false) {
+      userService.deactivateSubscription(user.id);
+      res.json({ success: true, message: 'Subscription deactivated' });
+    } else {
+      const newPlan = plan || user.subscription_plan;
+      const newEndDate = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+      userService.activateSubscription(user.id, newPlan, newEndDate);
+      res.json({
+        success: true,
+        message: 'Subscription updated',
+        plan: newPlan,
+        endDate: newEndDate
+      });
+    }
+  } catch (error) {
+    console.error('Update subscription error:', error);
+    res.status(500).json({ error: 'Failed to update subscription' });
   }
-);
+});
 
 /**
  * POST /api/admin/user/delete
  * Delete user
  */
-router.post('/user/delete', requireAdmin,
-  validateFields('userId'),
-  (req, res) => {
-    try {
-      const { userId } = req.body;
-      
-      const user = userService.getUserById(parseInt(userId));
-      
-      if (!user) {
-        return res.status(404).json({ error: 'User not found' });
-      }
-      
-      userService.deleteUser(parseInt(userId));
-      
-      res.json({ success: true, message: 'User deleted' });
-    } catch (error) {
-      console.error('Delete user error:', error);
-      res.status(500).json({ error: 'Failed to delete user' });
+router.post('/user/delete', requireAdmin, (req, res) => {
+  try {
+    const { telegramId } = req.body;
+
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId is required' });
     }
+
+    const user = userService.getUserByTelegramId(parseInt(telegramId));
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    userService.deleteUser(user.id);
+
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
-);
+});
 
 /**
  * POST /api/admin/prices

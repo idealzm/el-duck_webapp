@@ -9,20 +9,27 @@ const configService = require('../services/configService');
  * Check admin authentication
  */
 function requireAdmin(req, res, next) {
-  const { token, telegramId } = req.body;
-  
+  // Support both old (telegramId) and new (adminTelegramId) field names
+  const token = req.body.token;
+  const telegramId = req.body.adminTelegramId || req.body.telegramId;
+
   if (!token || !telegramId) {
+    console.log('Auth middleware: missing token or telegramId');
+    console.log('Request body:', req.body);
     return res.status(403).json({ error: 'Authentication required' });
   }
-  
+
   // Cleanup expired sessions periodically
   configService.cleanupSessions();
-  
+
   // Validate session
-  if (!configService.validateSession(token, telegramId)) {
+  const isValid = configService.validateSession(token, telegramId);
+  console.log('RequireAdmin validation result:', isValid);
+  
+  if (!isValid) {
     return res.status(403).json({ error: 'Access denied' });
   }
-  
+
   next();
 }
 
@@ -31,13 +38,13 @@ function requireAdmin(req, res, next) {
  */
 function optionalAdmin(req, res, next) {
   const { token, telegramId } = req.body;
-  
+
   req.isAdmin = false;
-  
+
   if (token && telegramId) {
     req.isAdmin = configService.validateSession(token, telegramId);
   }
-  
+
   next();
 }
 

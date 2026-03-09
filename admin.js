@@ -387,9 +387,8 @@ function closeUserModal() {
 // Update user balance
 async function updateUserBalance(userId, amount, operation) {
     try {
-        const session = sessionStorage.getItem('adminSession');
-        const sessionData = session ? JSON.parse(session) : null;
-        
+        const sessionData = getSessionData();
+
         const response = await fetch(`${API_BASE_URL}/admin/user/balance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -397,7 +396,8 @@ async function updateUserBalance(userId, amount, operation) {
                 telegramId: userId,
                 amount: Math.abs(amount),
                 operation: operation,
-                token: sessionData?.token
+                token: sessionData?.token,
+                adminTelegramId: sessionData?.id
             })
         });
 
@@ -419,9 +419,8 @@ async function updateUserBalance(userId, amount, operation) {
 // Update user subscription
 async function updateUserSubscription(userId, plan, endDate) {
     try {
-        const session = sessionStorage.getItem('adminSession');
-        const sessionData = session ? JSON.parse(session) : null;
-        
+        const sessionData = getSessionData();
+
         const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -429,7 +428,8 @@ async function updateUserSubscription(userId, plan, endDate) {
                 telegramId: userId,
                 plan: plan,
                 endDate: endDate || null,
-                token: sessionData?.token
+                token: sessionData?.token,
+                adminTelegramId: sessionData?.id
             })
         });
 
@@ -454,15 +454,15 @@ async function deleteUser(userId) {
     if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
 
     try {
-        const session = sessionStorage.getItem('adminSession');
-        const sessionData = session ? JSON.parse(session) : null;
-        
+        const sessionData = getSessionData();
+
         const response = await fetch(`${API_BASE_URL}/admin/user/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 telegramId: userId,
-                token: sessionData?.token
+                token: sessionData?.token,
+                adminTelegramId: sessionData?.id
             })
         });
 
@@ -517,13 +517,16 @@ async function savePrices() {
     };
 
     try {
-        const session = sessionStorage.getItem('adminSession');
-        const sessionData = session ? JSON.parse(session) : null;
+        const sessionData = getSessionData();
 
         const response = await fetch(`${API_BASE_URL}/admin/prices`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...prices, token: sessionData?.token })
+            body: JSON.stringify({ 
+                ...prices, 
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
         });
 
         const data = await response.json();
@@ -648,13 +651,16 @@ async function saveSettings() {
     };
 
     try {
-        const session = sessionStorage.getItem('adminSession');
-        const sessionData = session ? JSON.parse(session) : null;
-        
+        const sessionData = getSessionData();
+
         const response = await fetch(`${API_BASE_URL}/admin/settings`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...newSettings, token: sessionData?.token })
+            body: JSON.stringify({ 
+                ...newSettings, 
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
         });
 
         const data = await response.json();
