@@ -575,7 +575,13 @@ async function openUserModal(telegramId) {
 
     // Reset form fields
     document.getElementById('editBalance').value = '';
-    document.getElementById('editSubscriptionPlan').value = subscriptionPlan || '';
+    
+    // If subscription is active but plan is empty/null, default to 'full'
+    const planValue = subscriptionActive && (!subscriptionPlan || subscriptionPlan === '')
+        ? 'full'
+        : (subscriptionPlan || '');
+    document.getElementById('editSubscriptionPlan').value = planValue;
+    
     document.getElementById('editSubscriptionEnd').value = user.subscription_end
         ? new Date(user.subscription_end).toISOString().split('T')[0]
         : '';
@@ -636,7 +642,7 @@ async function updateSubscription() {
     const endDate = document.getElementById('editSubscriptionEnd').value;
 
     const sessionData = getSessionData();
-    
+
     try {
         const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
             method: 'POST',
@@ -644,7 +650,7 @@ async function updateSubscription() {
             body: JSON.stringify({
                 token: sessionData?.token,
                 telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
-                plan: plan || null,
+                plan: plan === '' ? null : plan,
                 endDate: endDate || null
             })
         });

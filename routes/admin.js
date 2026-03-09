@@ -251,11 +251,11 @@ router.post('/user/subscription', requireAdmin, (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (plan === 'none' || req.body.active === false) {
+    if (plan === 'none' || plan === null || plan === '' || req.body.active === false) {
       userService.deactivateSubscription(user.id);
       res.json({ success: true, message: 'Subscription deactivated' });
     } else {
-      const newPlan = plan || user.subscription_plan;
+      const newPlan = plan || 'full';
       const newEndDate = endDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       userService.activateSubscription(user.id, newPlan, newEndDate);
       res.json({
