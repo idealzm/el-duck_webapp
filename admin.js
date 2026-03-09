@@ -652,18 +652,31 @@ async function saveSettings() {
 
     try {
         const sessionData = getSessionData();
+        
+        console.log('=== Save Settings ===');
+        console.log('Session data:', sessionData);
+        console.log('Settings to save:', newSettings);
+
+        if (!sessionData || !sessionData.token || !sessionData.id) {
+            console.error('No valid session found');
+            showToast('Сессия не найдена. Войдите заново.', 'error');
+            return;
+        }
 
         const response = await fetch(`${API_BASE_URL}/admin/settings/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                ...newSettings, 
-                token: sessionData?.token,
-                telegramId: sessionData?.id
+            body: JSON.stringify({
+                ...newSettings,
+                token: sessionData.token,
+                telegramId: sessionData.id
             })
         });
+        
+        console.log('Response status:', response.status);
 
         const data = await response.json();
+        console.log('Response data:', data);
 
         if (data.success) {
             showToast('Настройки сохранены', 'success');
