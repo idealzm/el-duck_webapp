@@ -139,10 +139,16 @@
     height: 24px;
 }
 
+.nav-item svg path,
+.nav-item svg circle,
+.nav-item svg line {
+    stroke: #fff;
+}
+
 .nav-item.active svg path,
 .nav-item.active svg circle,
-.nav-item.active svg [stroke] {
-    stroke: #000 !important;
+.nav-item.active svg line {
+    stroke: #000;
 }
 
 .sidebar-footer {
