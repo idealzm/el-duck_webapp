@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0f0f0f" />
     <title>Admin Panel</title>
     <link rel="stylesheet" href="admin.css" />
@@ -16,28 +16,63 @@
             </div>
             <h1 class="login-title">Admin Panel</h1>
             <p class="login-subtitle">VPN Service</p>
-            
+
             <div id="loginError" class="login-error" style="display: none;"></div>
-            
+
             <!-- Telegram Login Widget -->
             <div id="telegramLoginWidget"></div>
-            
+
             <p class="login-note">Только для авторизованных администраторов</p>
         </div>
     </div>
 
     <!-- Admin Dashboard -->
     <div id="adminDashboard" class="admin-dashboard" style="display: none;">
-        <!-- Header -->
-        <header class="admin-header">
-            <div class="header-left">
-                <img src="logo.svg" alt="Logo" class="header-logo" />
-                <h1 class="header-title">Admin Panel</h1>
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <img src="logo.svg" alt="Logo" class="sidebar-logo" />
+                <h1 class="sidebar-title">Admin</h1>
             </div>
-            <div class="header-right">
+
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-tab="users">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                        <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Пользователи</span>
+                </button>
+                <button class="nav-item" data-tab="prices">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2V22M12 7C7 7 5 9 5 12C5 15 7 17 12 17C17 17 19 15 19 12C19 9 17 7 12 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Цены</span>
+                </button>
+                <button class="nav-item" data-tab="subscriptions">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Подписки</span>
+                </button>
+                <button class="nav-item" data-tab="settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M19.4 15C19.7771 14.5724 20 14.0107 20 13.4V10.6C20 9.98932 19.7771 9.42764 19.4 9L20.38 8.02C20.757 7.643 20.757 7.037 20.38 6.66L18.34 4.62C17.963 4.243 17.357 4.243 16.98 4.62L16 5.6C15.5724 5.22293 15.0107 5 14.4 5H11.6C10.9893 5 10.4276 5.22293 10 5.6L9.02 4.62C8.643 4.243 8.037 4.243 7.66 4.62L5.62 6.66C5.243 7.037 5.243 7.643 5.62 8.02L6.6 9C6.22293 9.42764 6 9.98932 6 10.6V13.4C6 14.0107 6.22293 14.5724 6.6 15L5.62 15.98C5.243 16.357 5.243 16.963 5.62 17.34L7.66 19.38C8.037 19.757 8.643 19.757 9.02 19.38L10 18.4C10.4276 18.7771 10.9893 19 11.6 19H14.4C15.0107 19 15.5724 18.7771 16 18.4L16.98 19.38C17.357 19.757 17.963 19.757 18.34 19.38L20.38 17.34C20.757 16.963 20.757 16.357 20.38 15.98L19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Настройки</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
                 <div class="admin-info">
-                    <span id="adminName" class="admin-name">Admin</span>
-                    <span id="adminUsername" class="admin-username">@admin</span>
+                    <div class="admin-avatar" id="adminAvatar">A</div>
+                    <div class="admin-details">
+                        <span id="adminName" class="admin-name">Admin</span>
+                        <span id="adminUsername" class="admin-username">@admin</span>
+                    </div>
                 </div>
                 <button id="logoutBtn" class="btn-logout" title="Выйти">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -47,42 +82,10 @@
                     </svg>
                 </button>
             </div>
-        </header>
+        </aside>
 
-        <!-- Navigation Tabs -->
-        <nav class="admin-tabs">
-            <button class="tab-btn active" data-tab="users">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17 21V19C17 17.9391 16.5786 16.9217 15.8284 16.1716C15.0783 15.4214 14.0609 15 13 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
-                    <path d="M23 21V19C22.9993 18.1137 22.7044 17.2528 22.1614 16.5523C21.6184 15.8519 20.8581 15.3516 20 15.13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M16 3.13C16.8604 3.35031 17.623 3.85071 18.1676 4.55232C18.7122 5.25392 19.0078 6.11683 19.0078 7.005C19.0078 7.89318 18.7122 8.75608 18.1676 9.45769C17.623 10.1593 16.8604 10.6597 16 10.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Пользователи
-            </button>
-            <button class="tab-btn" data-tab="prices">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2V22M12 7C7 7 5 9 5 12C5 15 7 17 12 17C17 17 19 15 19 12C19 9 17 7 12 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Цены
-            </button>
-            <button class="tab-btn" data-tab="subscriptions">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M9 12H15M9 16H15M17 21H7C5.89543 21 5 20.1046 5 19V5C5 3.89543 5.89543 3 7 3H12.5858C12.851 3 13.1054 3.10536 13.2929 3.29289L18.7071 8.70711C18.8946 8.89464 19 9.149 19 9.41421V19C19 20.1046 18.1046 21 17 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Подписки
-            </button>
-            <button class="tab-btn" data-tab="settings">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 15C13.6569 15 15 13.6569 15 12C15 10.3431 13.6569 9 12 9C10.3431 9 9 10.3431 9 12C9 13.6569 10.3431 15 12 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    <path d="M19.4 15C19.7771 14.5724 20 14.0107 20 13.4V10.6C20 9.98932 19.7771 9.42764 19.4 9L20.38 8.02C20.757 7.643 20.757 7.037 20.38 6.66L18.34 4.62C17.963 4.243 17.357 4.243 16.98 4.62L16 5.6C15.5724 5.22293 15.0107 5 14.4 5H11.6C10.9893 5 10.4276 5.22293 10 5.6L9.02 4.62C8.643 4.243 8.037 4.243 7.66 4.62L5.62 6.66C5.243 7.037 5.243 7.643 5.62 8.02L6.6 9C6.22293 9.42764 6 9.98932 6 10.6V13.4C6 14.0107 6.22293 14.5724 6.6 15L5.62 15.98C5.243 16.357 5.243 16.963 5.62 17.34L7.66 19.38C8.037 19.757 8.643 19.757 9.02 19.38L10 18.4C10.4276 18.7771 10.9893 19 11.6 19H14.4C15.0107 19 15.5724 18.7771 16 18.4L16.98 19.38C17.357 19.757 17.963 19.757 18.34 19.38L20.38 17.34C20.757 16.963 20.757 16.357 20.38 15.98L19.4 15Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                Настройки
-            </button>
-        </nav>
-
-        <!-- Content Area -->
-        <main class="admin-content">
+        <!-- Main Content -->
+        <main class="main-content">
             <!-- Users Tab -->
             <div id="usersTab" class="tab-content active">
                 <div class="tab-header">
@@ -127,7 +130,7 @@
                         </div>
                         <p class="price-description">Цена подписки на Telegram Proxy</p>
                     </div>
-                    
+
                     <div class="price-card">
                         <h3>Полный доступ (VPN + Proxy)</h3>
                         <div class="price-input-group">
@@ -205,7 +208,7 @@
                         Сохранить
                     </button>
                 </div>
-                
+
                 <div class="settings-section">
                     <h3>Общие настройки</h3>
                     <div class="settings-form">
@@ -310,7 +313,7 @@
                             <span id="userDetailCreatedAt" class="detail-value"></span>
                         </div>
                     </div>
-                    
+
                     <div class="user-actions">
                         <div class="action-group">
                             <label>Изменить баланс</label>
@@ -320,7 +323,7 @@
                                 <button id="subtractBalanceBtn" class="btn-action-small">−</button>
                             </div>
                         </div>
-                        
+
                         <div class="action-group">
                             <label>Управление подпиской</label>
                             <div class="subscription-edit">
@@ -333,7 +336,7 @@
                                 <button id="updateSubscriptionBtn" class="btn-action-full">Обновить подписку</button>
                             </div>
                         </div>
-                        
+
                         <div class="action-group">
                             <button id="deleteUserBtn" class="btn-danger">Удалить пользователя</button>
                         </div>
@@ -343,6 +346,6 @@
         </div>
     </div>
 
-    <script src="admin.js?v=1.0.4" defer></script>
+    <script src="admin.js?v=2.0.0" defer></script>
 </body>
 </html>
