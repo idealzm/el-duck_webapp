@@ -12,13 +12,9 @@ let selectedUser = null;
 let allUsers = [];
 let allSubscriptions = [];
 let settings = {};
-let csrfToken = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    // Load CSRF token first
-    await loadCsrfToken();
-    
     initTelegramLoginWidget();
     checkSession();
 
@@ -61,82 +57,26 @@ function getSessionData() {
     return session ? JSON.parse(session) : null;
 }
 
-// Load CSRF token
-async function loadCsrfToken() {
-    try {
-        const sessionData = getSessionData();
-        const telegramId = sessionData?.id || 'anonymous';
-        const response = await fetch(`${API_BASE_URL}/admin/config?telegramId=${telegramId}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (data.csrfToken) {
-                csrfToken = data.csrfToken;
-                console.log('CSRF token loaded successfully');
-            }
-        }
-    } catch (error) {
-        console.error('Failed to load CSRF token:', error);
-    }
-}
-
-// Helper function for API requests with CSRF token
+// Helper function for API requests
 async function apiRequest(url, options = {}) {
     const headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
     };
 
-    // Add CSRF token for mutating requests
-    if (['POST', 'PUT', 'DELETE'].includes(options.method?.toUpperCase())) {
-        headers['X-CSRF-Token'] = csrfToken || '';
-    }
-
-    // Merge with user-provided headers
-    if (options.headers) {
-        Object.assign(headers, options.headers);
-    }
-
-    const response = await fetch(url, { ...options, headers });
-
-    // If CSRF token was invalid, try to get a new one and retry
-    if (response.status === 403) {
-        const data = await response.json();
-        if (data.error === 'Invalid or missing CSRF token') {
-            // Fetch new CSRF token
-            try {
-                const sessionData = getSessionData();
-                const telegramId = sessionData?.id || 'anonymous';
-                const configResponse = await fetch(`${API_BASE_URL}/admin/config?telegramId=${telegramId}`);
-                if (configResponse.ok) {
-                    const configData = await configResponse.json();
-                    csrfToken = configData.csrfToken;
-                    console.log('CSRF token refreshed');
-
-                    // Retry with new token
-                    headers['X-CSRF-Token'] = csrfToken;
-                    return await fetch(url, { ...options, headers });
-                }
-            } catch (e) {
-                console.error('Failed to refresh CSRF token:', e);
-            }
-        }
-    }
-
-    return response;
+    return fetch(url, { ...options, headers });
 }
 
 // Initialize Telegram Login Widget
 async function initTelegramLoginWidget() {
-    // Fetch bot username and CSRF token from server
+    // Fetch bot username from server
     let botUsername = 'idealzmtestbot'; // Default fallback
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/config`);
+        const response = await fetch(`${API_BASE_URL}/admin/bot-username`);
         if (response.ok) {
             const data = await response.json();
             if (data.botUsername) {
                 botUsername = data.botUsername;
-            }
-            if (data.csrfToken) {
-                csrfToken = data.csrfToken;
             }
         }
     } catch (error) {
