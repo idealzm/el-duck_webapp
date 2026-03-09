@@ -242,22 +242,29 @@ function renderUsers(users) {
     usersList.innerHTML = users.map(user => {
         // Parse user data safely
         const telegramId = user.telegram_id || user.id || 'N/A';
-        const firstName = user.first_name || user.first_name === '' ? user.first_name : 'Без имени';
+        const firstName = user.first_name || 'Без имени';
         const lastName = user.last_name || '';
         const username = user.username || null;
         const balance = typeof user.balance === 'number' ? user.balance : 0;
-        const subscriptionActive = user.subscription_active === true;
+        const subscriptionActive = user.subscription_active === 1 || user.subscription_active === true;
         const subscriptionPlan = user.subscription_plan || '';
-        
-        const avatarInitial = (firstName || 'U').charAt(0).toUpperCase();
-        const subscriptionText = subscriptionActive
-            ? (subscriptionPlan === 'telegram' ? 'Telegram' : 'Full')
-            : 'Нет';
 
+        const avatarInitial = (firstName !== 'Без имени' ? firstName.charAt(0) : 'U').toUpperCase();
+        
+        // Subscription status
+        let subscriptionText = 'Нет';
+        let subscriptionClass = 'no-subscription';
+        if (subscriptionActive) {
+            subscriptionText = subscriptionPlan === 'telegram' ? 'Telegram' : 'Full';
+            subscriptionClass = 'has-subscription';
+        }
+
+        // Display name: first_name + last_name or just first_name
         const displayName = firstName && firstName !== 'Без имени'
-            ? `${escapeHtml(firstName)} ${escapeHtml(lastName)}`.trim() || 'Без имени'
+            ? `${escapeHtml(firstName)} ${escapeHtml(lastName)}`.trim()
             : 'Без имени';
 
+        // Display username: @username or Telegram ID
         const displayUsername = username ? `@${escapeHtml(username)}` : `ID: ${telegramId}`;
 
         return `
@@ -278,7 +285,7 @@ function renderUsers(users) {
                     </div>
                     <div class="user-stat">
                         <span class="user-stat-label">Подписка</span>
-                        <span class="user-stat-value ${subscriptionActive ? 'has-subscription' : 'no-subscription'}">${subscriptionText}</span>
+                        <span class="user-stat-value ${subscriptionClass}">${subscriptionText}</span>
                     </div>
                 </div>
                 <button class="btn-user-action" onclick="openUserModal('${telegramId}')">
