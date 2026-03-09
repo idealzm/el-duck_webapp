@@ -308,11 +308,20 @@ router.post('/prices', (req, res) => {
   try {
     const { token, telegramId } = req.body;
     
+    console.log('=== Prices Request ===');
+    console.log('Token:', token);
+    console.log('Telegram ID:', telegramId);
+    console.log('Full request body:', JSON.stringify(req.body, null, 2));
+
     // Check admin authorization
-    if (!configService.validateSession(token, telegramId)) {
+    const isValid = configService.validateSession(token, telegramId);
+    console.log('Validation result:', isValid);
+    
+    if (!isValid) {
+      console.error('Access denied - invalid session');
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     const prices = configService.getPrices();
     res.json(prices);
   } catch (error) {
