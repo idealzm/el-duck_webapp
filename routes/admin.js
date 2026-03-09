@@ -384,6 +384,9 @@ router.post('/settings', (req, res) => {
  */
 router.post('/settings/save', requireAdmin, (req, res) => {
   try {
+    console.log('=== Save Settings Request ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
     const { 
       siteEnabled, 
       maintenanceMessage, 
@@ -409,8 +412,12 @@ router.post('/settings/save', requireAdmin, (req, res) => {
         ? adminIds.split(',').map(id => id.trim()).filter(id => id)
         : (adminIds || [])
     };
+    
+    console.log('Processed settings:', newSettings);
 
     const success = configService.updateSettings(newSettings);
+    
+    console.log('Save result:', success);
 
     if (success) {
       res.json({ success: true, settings: configService.getSettings() });
