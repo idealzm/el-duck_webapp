@@ -14,24 +14,33 @@ const { validateFields, validateNumeric, validateEnum } = require('../middleware
 /**
  * POST /api/admin/auth
  * Admin login - create session
+ * Accepts Telegram user data: { id, first_name, last_name, username, photo_url, auth_date, hash }
  */
 router.post('/auth', (req, res) => {
   try {
-    const { telegramId } = req.body;
-    
+    // Telegram sends { id, first_name, ... } but we need telegramId
+    const telegramId = req.body.telegramId || req.body.id;
+
     if (!telegramId) {
+      console.error('Auth error: No telegramId or id in request body');
+      console.error('Request body:', req.body);
       return res.status(400).json({ error: 'telegramId is required' });
     }
-    
+
+    console.log('Admin auth attempt for telegramId:', telegramId);
+
     if (!configService.isAdmin(telegramId)) {
+      console.error('Access denied for telegramId:', telegramId);
       return res.status(403).json({ error: 'Access denied. Not an admin.' });
     }
-    
+
     // Generate session token
     const token = `admin_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    
+
     configService.createSession(token, telegramId);
-    
+
+    console.log('Admin auth successful for telegramId:', telegramId);
+
     res.json({
       success: true,
       token,
