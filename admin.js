@@ -217,6 +217,15 @@ function loadAllData() {
     loadSettings();
 }
 
+// Get session data for API requests
+function getSessionData() {
+    const session = sessionStorage.getItem('adminSession');
+    if (session) {
+        return JSON.parse(session);
+    }
+    return null;
+}
+
 // Switch tabs
 function switchTab(tabName) {
     currentTab = tabName;
@@ -236,12 +245,24 @@ function switchTab(tabName) {
 // Load users
 async function loadUsers() {
     const usersList = document.getElementById('usersList');
+    const sessionData = getSessionData();
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users`);
+        const response = await fetch(`${API_BASE_URL}/admin/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
-
-        allUsers = data.users || [];
+        allUsers = data || [];
         renderUsers(allUsers);
     } catch (error) {
         console.error('Load users error:', error);
@@ -462,8 +483,17 @@ async function deleteUser(userId) {
 
 // Load prices
 async function loadPrices() {
+    const sessionData = getSessionData();
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/prices`);
+        const response = await fetch(`${API_BASE_URL}/admin/prices`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
+        });
         const data = await response.json();
 
         document.getElementById('telegramPrice').value = data.telegramPrice || 99;
@@ -511,13 +541,21 @@ async function savePrices() {
 
 // Load subscriptions
 async function loadSubscriptions() {
+    const sessionData = getSessionData();
     const subscriptionsList = document.getElementById('subscriptionsList');
 
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/subscriptions`);
+        const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
+        });
         const data = await response.json();
 
-        allSubscriptions = data.subscriptions || [];
+        allSubscriptions = data || [];
 
         // Update stats
         document.getElementById('totalSubscriptions').textContent = allSubscriptions.length;
@@ -566,8 +604,17 @@ function renderSubscriptions(subscriptions) {
 
 // Load settings
 async function loadSettings() {
+    const sessionData = getSessionData();
+    
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/settings`);
+        const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                token: sessionData?.token,
+                telegramId: sessionData?.id
+            })
+        });
         const data = await response.json();
 
         settings = data;
@@ -580,7 +627,7 @@ async function loadSettings() {
         document.getElementById('proxyPort').value = data.proxyPort || '';
         document.getElementById('proxyUser').value = data.proxyUser || '';
         document.getElementById('proxyPass').value = data.proxyPass || '';
-        document.getElementById('adminIds').value = data.adminIds || '';
+        document.getElementById('adminIds').value = Array.isArray(data.adminIds) ? data.adminIds.join(',') : (data.adminIds || '');
     } catch (error) {
         console.error('Load settings error:', error);
     }

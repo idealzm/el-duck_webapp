@@ -59,17 +59,18 @@ router.post('/auth', (req, res) => {
 router.post('/check', (req, res) => {
   try {
     const { token, telegramId } = req.body;
-    
+
     if (!token || !telegramId) {
-      return res.status(400).json({ valid: false });
+      return res.status(400).json({ valid: false, isAdmin: false });
     }
-    
+
     const valid = configService.validateSession(token, telegramId);
     
-    res.json({ valid });
+    // Return both 'valid' and 'isAdmin' for compatibility
+    res.json({ valid, isAdmin: valid });
   } catch (error) {
     console.error('Admin check error:', error);
-    res.status(500).json({ error: 'Check failed' });
+    res.status(500).json({ error: 'Check failed', valid: false, isAdmin: false });
   }
 });
 
@@ -129,13 +130,20 @@ router.post('/bot-config', requireAdmin, (req, res) => {
 });
 
 /**
- * GET /api/admin/users
+ * POST /api/admin/users
  * Get all users
  */
-router.get('/users', requireAdmin, (req, res) => {
+router.post('/users', (req, res) => {
   try {
-    const users = userService.getAllUsers();
+    const { token, telegramId } = req.body;
     
+    // Check admin authorization
+    if (!configService.validateSession(token, telegramId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
+    const users = userService.getAllUsers();
+
     // Format users for response
     const formattedUsers = users.map(user => ({
       id: user.id,
@@ -150,7 +158,7 @@ router.get('/users', requireAdmin, (req, res) => {
       devicesCount: user.devices_count || 0,
       createdAt: user.created_at
     }));
-    
+
     res.json(formattedUsers);
   } catch (error) {
     console.error('Get users error:', error);
@@ -278,11 +286,18 @@ router.post('/user/delete', requireAdmin,
 );
 
 /**
- * GET /api/admin/prices
+ * POST /api/admin/prices
  * Get prices configuration
  */
-router.get('/prices', requireAdmin, (req, res) => {
+router.post('/prices', (req, res) => {
   try {
+    const { token, telegramId } = req.body;
+    
+    // Check admin authorization
+    if (!configService.validateSession(token, telegramId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const prices = configService.getPrices();
     res.json(prices);
   } catch (error) {
@@ -319,14 +334,21 @@ router.post('/prices', requireAdmin, (req, res) => {
 });
 
 /**
- * GET /api/admin/subscriptions
+ * POST /api/admin/subscriptions
  * Get all subscriptions (payments with subscription type)
  */
-router.get('/subscriptions', requireAdmin, (req, res) => {
+router.post('/subscriptions', (req, res) => {
   try {
+    const { token, telegramId } = req.body;
+    
+    // Check admin authorization
+    if (!configService.validateSession(token, telegramId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const payments = paymentService.getAllPayments();
     const subscriptions = payments.filter(p => p.payment_type === 'subscription');
-    
+
     res.json(subscriptions);
   } catch (error) {
     console.error('Get subscriptions error:', error);
@@ -335,11 +357,18 @@ router.get('/subscriptions', requireAdmin, (req, res) => {
 });
 
 /**
- * GET /api/admin/settings
+ * POST /api/admin/settings
  * Get site settings
  */
-router.get('/settings', requireAdmin, (req, res) => {
+router.post('/settings', (req, res) => {
   try {
+    const { token, telegramId } = req.body;
+    
+    // Check admin authorization
+    if (!configService.validateSession(token, telegramId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    
     const settings = configService.getSettings();
     res.json(settings);
   } catch (error) {
