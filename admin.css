@@ -133,22 +133,15 @@
     border-left-color: #fff;
 }
 
-.nav-item svg {
+.nav-item .nav-icon {
     flex-shrink: 0;
     width: 24px;
     height: 24px;
+    filter: invert(1);
 }
 
-.nav-item svg path,
-.nav-item svg circle,
-.nav-item svg line {
-    stroke: #fff;
-}
-
-.nav-item.active svg path,
-.nav-item.active svg circle,
-.nav-item.active svg line {
-    stroke: #000;
+.nav-item.active .nav-icon {
+    filter: invert(0);
 }
 
 .sidebar-footer {
