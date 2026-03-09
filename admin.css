@@ -139,12 +139,6 @@
     height: 24px;
 }
 
-.nav-item svg path,
-.nav-item svg circle,
-.nav-item svg [stroke] {
-    stroke: #fff !important;
-}
-
 .nav-item.active svg path,
 .nav-item.active svg circle,
 .nav-item.active svg [stroke] {
