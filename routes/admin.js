@@ -27,18 +27,33 @@ router.post('/auth', (req, res) => {
       return res.status(400).json({ error: 'telegramId is required' });
     }
 
-    console.log('Admin auth attempt for telegramId:', telegramId);
+    console.log('=== Admin Auth Attempt ===');
+    console.log('Telegram ID:', telegramId);
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    
+    // Load config and check admin IDs
+    const config = configService.loadAdminConfig();
+    console.log('Admin IDs from config:', config.adminIds);
+    console.log('Is admin check result:', configService.isAdmin(telegramId));
 
     if (!configService.isAdmin(telegramId)) {
       console.error('Access denied for telegramId:', telegramId);
-      return res.status(403).json({ error: 'Access denied. Not an admin.' });
+      console.error('Your telegramId is not in adminIds list');
+      return res.status(403).json({ 
+        error: 'Access denied. Not an admin.',
+        debug: {
+          yourId: telegramId,
+          adminIds: config.adminIds
+        }
+      });
     }
 
     // Generate session token
     const token = `admin_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
     configService.createSession(token, telegramId);
-
+    
+    console.log('Session created:', token);
     console.log('Admin auth successful for telegramId:', telegramId);
 
     res.json({
