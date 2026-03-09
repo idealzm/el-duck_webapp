@@ -222,6 +222,7 @@ async function loadUsers() {
 
         const data = await response.json();
         allUsers = Array.isArray(data) ? data : [];
+        console.log('Loaded users:', allUsers);
         renderUsers(allUsers);
     } catch (error) {
         console.error('Load users error:', error);
