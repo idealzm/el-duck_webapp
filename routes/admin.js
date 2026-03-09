@@ -132,8 +132,22 @@ router.post('/prices/save', requireAdmin, (req, res) => {
  */
 router.post('/subscriptions', requireAdmin, (req, res) => {
   try {
-    const payments = paymentService.getAllPayments();
-    const subscriptions = payments.filter(p => p.payment_type === 'subscription');
+    const db = getDb();
+    const stmt = db.prepare(`
+      SELECT u.telegram_id, u.first_name, u.last_name, u.username, 
+             u.subscription_active, u.subscription_plan, u.subscription_end,
+             u.created_at
+      FROM users u
+      WHERE u.subscription_active = 1
+      ORDER BY u.subscription_end DESC
+    `);
+    
+    const subscriptions = [];
+    while (stmt.step()) {
+      subscriptions.push(stmt.getAsObject());
+    }
+    stmt.free();
+    
     res.json(subscriptions);
   } catch (error) {
     console.error('Get subscriptions error:', error);

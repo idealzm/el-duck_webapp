@@ -172,15 +172,39 @@ function updatePaymentYooKassaId(paymentId, yookassaId) {
 function processSuccessfulPayment(payment) {
   const db = getDb();
   const userService = require('./userService');
-  
+
   // Update payment status
   updatePaymentStatus(payment.id, 'succeeded');
-  
+
   if (payment.payment_type === 'subscription') {
     // Activate subscription
-    const subscriptionEnd = new Date();
-    subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+    const user = userService.getUserById(payment.user_id);
     
+    // Calculate subscription end date
+    let subscriptionEnd = new Date();
+
+    if (user.subscription_active && user.subscription_end) {
+      // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
+      const endDateStr = user.subscription_end.includes('T') 
+        ? user.subscription_end 
+        : user.subscription_end.replace(' ', 'T');
+      const endDate = new Date(endDateStr);
+      
+      if (endDate > new Date()) {
+        // Extend from current end date
+        subscriptionEnd = new Date(endDate);
+        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+      } else {
+        // End date is in the past, start from now
+        subscriptionEnd = new Date();
+        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+      }
+    } else {
+      // New subscription from now
+      subscriptionEnd = new Date();
+      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+    }
+
     userService.activateSubscription(payment.user_id, payment.subscription_plan, subscriptionEnd.toISOString());
   } else {
     // Top up balance
@@ -267,16 +291,26 @@ function paySubscriptionFromBalance(userId, plan, amount) {
   
   // Calculate subscription end date
   let subscriptionEnd = new Date();
-  
+
   if (user.subscription_active && user.subscription_end) {
-    const endDate = new Date(user.subscription_end);
+    // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
+    const endDateStr = user.subscription_end.includes('T') 
+      ? user.subscription_end 
+      : user.subscription_end.replace(' ', 'T');
+    const endDate = new Date(endDateStr);
+    
     if (endDate > new Date()) {
       // Extend from current end date
       subscriptionEnd = new Date(endDate);
       subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+    } else {
+      // End date is in the past, start from now
+      subscriptionEnd = new Date();
+      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
     }
   } else {
     // New subscription from now
+    subscriptionEnd = new Date();
     subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
   }
   

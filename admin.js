@@ -424,15 +424,29 @@ function renderSubscriptions(subscriptions) {
     list.innerHTML = subscriptions.map(sub => {
         const icon = sub.subscription_plan === 'telegram' ? '✈️' : '🚀';
         const planName = sub.subscription_plan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ';
-        const isActive = sub.subscription_active && sub.subscription_end && new Date(sub.subscription_end) > new Date();
-        const endDate = sub.subscription_end ? new Date(sub.subscription_end).toLocaleDateString('ru-RU') : '—';
-        const firstName = sub.first_name || 'Без имени';
+        
+        // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
+        const endDateStr = sub.subscription_end || sub.subscriptionEnd;
+        const endDate = endDateStr 
+            ? new Date(endDateStr.includes('T') ? endDateStr : endDateStr.replace(' ', 'T'))
+            : null;
+        
+        const now = new Date();
+        const isActive = endDate && endDate > now;
+        
+        const displayEndDate = endDate 
+            ? endDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })
+            : '—';
+        
+        const firstName = sub.first_name || sub.firstName || 'Без имени';
+        const username = sub.username || sub.userName || '';
+        const displayName = username ? `@${username}` : (firstName !== 'Без имени' ? firstName : `ID: ${sub.telegram_id || sub.telegramId}`);
 
         return `
             <div class="subscription-item">
                 <div class="subscription-info">
-                    <div class="subscription-user">${icon} ${escapeHtml(firstName)}</div>
-                    <div class="subscription-details">${planName} • До ${endDate}</div>
+                    <div class="subscription-user">${icon} ${escapeHtml(displayName)}</div>
+                    <div class="subscription-details">${planName} • До ${displayEndDate}</div>
                 </div>
                 <span class="subscription-status ${isActive ? 'active' : 'expired'}">${isActive ? 'Активна' : 'Истекла'}</span>
             </div>
