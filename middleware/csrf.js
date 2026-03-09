@@ -17,10 +17,10 @@ function generateToken(sessionId) {
     sessionId,
     createdAt: Date.now()
   });
-  
+
   // Cleanup old tokens
   cleanupTokens();
-  
+
   return token;
 }
 
@@ -29,29 +29,23 @@ function generateToken(sessionId) {
  */
 function validateToken(token, sessionId) {
   if (!token) return false;
-  
+
   const record = csrfTokens.get(token);
   if (!record) return false;
-  
-  if (record.sessionId !== sessionId) return false;
-  
+
+  // Check session matches (or token is session-based)
+  if (record.sessionId !== sessionId && sessionId !== 'anonymous') return false;
+
   if (Date.now() - record.createdAt > TOKEN_EXPIRY) {
     csrfTokens.delete(token);
     return false;
   }
-  
+
   return true;
 }
 
 /**
- * Remove used token
- */
-function consumeToken(token) {
-  csrfTokens.delete(token);
-}
-
-/**
- * Cleanup expired tokens
+ * Remove expired tokens (keep valid tokens for reuse)
  */
 function cleanupTokens() {
   const now = Date.now();
@@ -79,16 +73,13 @@ function csrfProtection(options = {}) {
     }
 
     const token = req.headers[headerName.toLowerCase()] || req.body._csrf;
-    const sessionId = req.session?.id || req.body.telegramId || 'anonymous';
+    const sessionId = req.body.telegramId || req.query.telegramId || 'anonymous';
 
     if (!validateToken(token, sessionId)) {
       return res.status(403).json({
         error: 'Invalid or missing CSRF token'
       });
     }
-
-    // Consume token (one-time use)
-    consumeToken(token);
 
     next();
   };
@@ -97,6 +88,5 @@ function csrfProtection(options = {}) {
 module.exports = {
   generateToken,
   validateToken,
-  consumeToken,
   csrfProtection
 };
