@@ -140,13 +140,15 @@
 }
 
 .nav-item svg path,
-.nav-item svg circle {
-    stroke: #fff;
+.nav-item svg circle,
+.nav-item svg [stroke] {
+    stroke: #fff !important;
 }
 
 .nav-item.active svg path,
-.nav-item.active svg circle {
-    stroke: #000;
+.nav-item.active svg circle,
+.nav-item.active svg [stroke] {
+    stroke: #000 !important;
 }
 
 .sidebar-footer {
