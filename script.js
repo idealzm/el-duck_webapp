@@ -414,6 +414,10 @@ function updateSubscriptionUI(data) {
     const plan = data.subscriptionPlan;
     const endDate = data.subscriptionEnd;
 
+    // Determine access levels
+    const hasTelegramAccess = isActive && (plan === 'telegram' || plan === 'full');
+    const hasFullAccess = isActive && plan === 'full';
+
     // Update profile subscription status
     if (isActive) {
         statusBlock.classList.add('active');
@@ -438,11 +442,13 @@ function updateSubscriptionUI(data) {
         }
     }
 
-    // Update VPN section banner
+    // Update VPN section banner and load cards
     if (noSubscriptionBanner && cardsContainer) {
-        if (isActive) {
+        if (hasTelegramAccess) {
             noSubscriptionBanner.style.display = 'none';
             cardsContainer.style.display = 'flex';
+            // Reload cards with updated subscription status
+            loadCards();
         } else {
             noSubscriptionBanner.style.display = 'flex';
             cardsContainer.style.display = 'none';
@@ -967,7 +973,26 @@ async function loadCards() {
             return;
         }
 
-        const sortedCards = [...data.cards].sort((a, b) => {
+        // Filter cards based on subscription
+        const hasTelegramAccess = data.hasTelegramAccess || false;
+        const hasFullAccess = data.hasFullAccess || false;
+        
+        let filteredCards = data.cards;
+        
+        if (!hasTelegramAccess && !hasFullAccess) {
+            // No subscription - no cards
+            filteredCards = [];
+        } else if (hasTelegramAccess && !hasFullAccess) {
+            // Telegram only - filter out VPN cards
+            filteredCards = data.cards.filter(card => {
+                const title = (card.title || '').toLowerCase();
+                // Show only Telegram-related cards
+                return title.includes('telegram') || title.includes('proxy');
+            });
+        }
+        // If hasFullAccess - show all cards
+
+        const sortedCards = [...filteredCards].sort((a, b) => {
             const aHasNew = a.title && a.title.includes('NEW!');
             const bHasNew = b.title && b.title.includes('NEW!');
 
