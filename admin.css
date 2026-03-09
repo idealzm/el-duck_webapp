@@ -135,13 +135,13 @@
 
 .nav-item svg {
     flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    stroke: #fff;
+    width: 24px;
+    height: 24px;
+    filter: invert(1);
 }
 
 .nav-item.active svg {
-    stroke: #000;
+    filter: invert(0);
 }
 
 .sidebar-footer {
