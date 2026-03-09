@@ -564,13 +564,16 @@ async function openUserModal(telegramId) {
         : 'Нет';
     document.getElementById('userDetailSubscription').textContent = subscriptionText;
 
-    document.getElementById('userDetailSubscriptionEnd').textContent = user.subscription_end
-        ? new Date(user.subscription_end).toLocaleDateString('ru-RU')
-        : '—';
-
     document.getElementById('userDetailDevices').textContent = user.devices_count || user.devicesCount || 0;
-    document.getElementById('userDetailCreatedAt').textContent = user.created_at
-        ? new Date(user.created_at).toLocaleDateString('ru-RU')
+    
+    // Format created_at date (from DB: "2026-03-09 21:39:42")
+    const createdAt = user.created_at || user.createdAt;
+    document.getElementById('userDetailCreatedAt').textContent = createdAt
+        ? new Date(createdAt.replace(' ', 'T')).toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          })
         : '—';
 
     // Reset form fields
@@ -581,10 +584,6 @@ async function openUserModal(telegramId) {
         ? 'full'
         : (subscriptionPlan || '');
     document.getElementById('editSubscriptionPlan').value = planValue;
-    
-    document.getElementById('editSubscriptionEnd').value = user.subscription_end
-        ? new Date(user.subscription_end).toISOString().split('T')[0]
-        : '';
 
     document.getElementById('userModal').classList.add('active');
 }
@@ -639,7 +638,6 @@ async function updateSubscription() {
     if (!selectedUser) return;
 
     const plan = document.getElementById('editSubscriptionPlan').value;
-    const endDate = document.getElementById('editSubscriptionEnd').value;
 
     const sessionData = getSessionData();
 
@@ -651,7 +649,7 @@ async function updateSubscription() {
                 token: sessionData?.token,
                 telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
                 plan: plan === '' ? null : plan,
-                endDate: endDate || null
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
             })
         });
 
