@@ -23,38 +23,18 @@ router.post('/auth', (req, res) => {
 
     if (!telegramId) {
       console.error('Auth error: No telegramId or id in request body');
-      console.error('Request body:', req.body);
       return res.status(400).json({ error: 'telegramId is required' });
     }
 
-    console.log('=== Admin Auth Attempt ===');
-    console.log('Telegram ID:', telegramId);
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
-    
-    // Load config and check admin IDs
-    const config = configService.loadAdminConfig();
-    console.log('Admin IDs from config:', config.adminIds);
-    console.log('Is admin check result:', configService.isAdmin(telegramId));
-
     if (!configService.isAdmin(telegramId)) {
       console.error('Access denied for telegramId:', telegramId);
-      console.error('Your telegramId is not in adminIds list');
-      return res.status(403).json({ 
-        error: 'Access denied. Not an admin.',
-        debug: {
-          yourId: telegramId,
-          adminIds: config.adminIds
-        }
-      });
+      return res.status(403).json({ error: 'Access denied. Not an admin.' });
     }
 
     // Generate session token
     const token = `admin_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
     configService.createSession(token, telegramId);
-    
-    console.log('Session created:', token);
-    console.log('Admin auth successful for telegramId:', telegramId);
 
     res.json({
       success: true,
@@ -313,18 +293,9 @@ router.post('/user/delete', requireAdmin, (req, res) => {
 router.post('/prices', (req, res) => {
   try {
     const { token, telegramId } = req.body;
-    
-    console.log('=== Prices Request ===');
-    console.log('Token:', token);
-    console.log('Telegram ID:', telegramId);
-    console.log('Full request body:', JSON.stringify(req.body, null, 2));
 
     // Check admin authorization
-    const isValid = configService.validateSession(token, telegramId);
-    console.log('Validation result:', isValid);
-    
-    if (!isValid) {
-      console.error('Access denied - invalid session');
+    if (!configService.validateSession(token, telegramId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -393,12 +364,12 @@ router.post('/subscriptions', (req, res) => {
 router.post('/settings', (req, res) => {
   try {
     const { token, telegramId } = req.body;
-    
+
     // Check admin authorization
     if (!configService.validateSession(token, telegramId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
-    
+
     const settings = configService.getSettings();
     res.json(settings);
   } catch (error) {
@@ -408,15 +379,39 @@ router.post('/settings', (req, res) => {
 });
 
 /**
- * POST /api/admin/settings
+ * POST /api/admin/settings/save
  * Update site settings
  */
-router.post('/settings', requireAdmin, (req, res) => {
+router.post('/settings/save', requireAdmin, (req, res) => {
   try {
-    const settings = req.body;
-    
-    const success = configService.updateSettings(settings);
-    
+    const { 
+      siteEnabled, 
+      maintenanceMessage, 
+      wgConfigUrl, 
+      wgMsiUrl, 
+      proxyServer, 
+      proxyPort, 
+      proxyUser, 
+      proxyPass,
+      adminIds
+    } = req.body;
+
+    const newSettings = {
+      siteEnabled,
+      maintenanceMessage,
+      wgConfigUrl,
+      wgMsiUrl,
+      proxyServer,
+      proxyPort,
+      proxyUser,
+      proxyPass,
+      adminIds: typeof adminIds === 'string' 
+        ? adminIds.split(',').map(id => id.trim()).filter(id => id)
+        : (adminIds || [])
+    };
+
+    const success = configService.updateSettings(newSettings);
+
     if (success) {
       res.json({ success: true, settings: configService.getSettings() });
     } else {

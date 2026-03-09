@@ -165,22 +165,14 @@ function createSession(token, telegramId, expiresIn = 24 * 60 * 60 * 1000) {
 function validateSession(token, telegramId) {
   const sessions = loadSessions();
   
-  console.log('=== Validate Session ===');
-  console.log('Token:', token);
-  console.log('Telegram ID:', telegramId);
-  console.log('Session exists:', !!sessions[token]);
-  
   if (!sessions[token]) {
-    console.log('Session not found in:', Object.keys(sessions));
     return false;
   }
 
   const session = sessions[token];
-  console.log('Session data:', session);
 
   // Check expiration
   if (Date.now() > session.expires_at) {
-    console.log('Session expired');
     delete sessions[token];
     saveSessions(sessions);
     return false;
@@ -188,14 +180,11 @@ function validateSession(token, telegramId) {
 
   // Check telegram ID match
   if (session.telegramId !== telegramId) {
-    console.log('Telegram ID mismatch:', session.telegramId, '!=', telegramId);
     return false;
   }
 
   // Check if admin
-  const adminResult = isAdmin(telegramId);
-  console.log('Is admin result:', adminResult);
-  return adminResult;
+  return isAdmin(telegramId);
 }
 
 /**

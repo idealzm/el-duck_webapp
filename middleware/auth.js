@@ -14,8 +14,6 @@ function requireAdmin(req, res, next) {
   const telegramId = req.body.adminTelegramId || req.body.telegramId;
 
   if (!token || !telegramId) {
-    console.log('Auth middleware: missing token or telegramId');
-    console.log('Request body:', req.body);
     return res.status(403).json({ error: 'Authentication required' });
   }
 
@@ -23,10 +21,7 @@ function requireAdmin(req, res, next) {
   configService.cleanupSessions();
 
   // Validate session
-  const isValid = configService.validateSession(token, telegramId);
-  console.log('RequireAdmin validation result:', isValid);
-  
-  if (!isValid) {
+  if (!configService.validateSession(token, telegramId)) {
     return res.status(403).json({ error: 'Access denied' });
   }
 

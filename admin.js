@@ -653,7 +653,7 @@ async function saveSettings() {
     try {
         const sessionData = getSessionData();
 
-        const response = await fetch(`${API_BASE_URL}/admin/settings`, {
+        const response = await fetch(`${API_BASE_URL}/admin/settings/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
