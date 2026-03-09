@@ -2,8 +2,28 @@
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
 // API Configuration
-const API_BASE_URL = '/api'; // PHP Backend API URL
+const API_BASE_URL = '/api';
 const YOOKASSA_SHOP_ID = '1293384';
+
+// App version for cache busting
+const APP_VERSION = '1.0.3';
+
+// Check version and force reload if changed (for Telegram WebApp)
+(function checkAppVersion() {
+    const storedVersion = localStorage.getItem('appVersion');
+    console.log('App version check:', { current: APP_VERSION, stored: storedVersion });
+    
+    if (storedVersion && storedVersion !== APP_VERSION) {
+        console.log('Version changed, clearing cache and reloading...');
+        localStorage.clear();
+        sessionStorage.clear();
+        // Перезагрузка с параметром версии
+        window.location.href = window.location.pathname + '?v=' + APP_VERSION;
+        return;
+    }
+    
+    localStorage.setItem('appVersion', APP_VERSION);
+})();
 
 // Store instructions data
 let instructionsData = {};
