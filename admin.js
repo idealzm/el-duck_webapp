@@ -564,7 +564,7 @@ async function openUserModal(telegramId) {
         ? new Date(user.subscription_end).toLocaleDateString('ru-RU')
         : '—';
     
-    document.getElementById('userDetailDevices').textContent = user.devices || 0;
+    document.getElementById('userDetailDevices').textContent = user.devices_count || 0;
     document.getElementById('userDetailCreatedAt').textContent = user.created_at
         ? new Date(user.created_at).toLocaleDateString('ru-RU')
         : '—';
@@ -598,15 +598,14 @@ async function updateBalance(action) {
     const sessionData = getSessionData();
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users/balance`, {
+        const response = await fetch(`${API_BASE_URL}/admin/user/balance`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: sessionData?.id,
-                targetUserId: selectedUser.telegram_id || selectedUser.id,
+                telegramId: selectedUser.telegram_id || selectedUser.id,
                 amount: amount,
-                action: action
+                operation: action
             })
         });
 
@@ -635,13 +634,12 @@ async function updateSubscription() {
     const sessionData = getSessionData();
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users/subscription`, {
+        const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: sessionData?.id,
-                targetUserId: selectedUser.telegram_id || selectedUser.id,
+                telegramId: selectedUser.telegram_id || selectedUser.id,
                 plan: plan || null,
                 endDate: endDate || null
             })
@@ -674,13 +672,12 @@ async function deleteUser() {
     const sessionData = getSessionData();
     
     try {
-        const response = await fetch(`${API_BASE_URL}/admin/users/delete`, {
+        const response = await fetch(`${API_BASE_URL}/admin/user/delete`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: sessionData?.id,
-                targetUserId: selectedUser.telegram_id || selectedUser.id
+                telegramId: selectedUser.telegram_id || selectedUser.id
             })
         });
 
