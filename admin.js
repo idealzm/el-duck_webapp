@@ -240,14 +240,14 @@ function renderUsers(users) {
     }
 
     usersList.innerHTML = users.map(user => {
-        // Parse user data safely
-        const telegramId = user.telegram_id || user.id || 'N/A';
-        const firstName = user.first_name || 'Без имени';
-        const lastName = user.last_name || '';
+        // Parse user data safely (API returns camelCase)
+        const telegramId = user.telegramId || user.telegram_id || user.id || 'N/A';
+        const firstName = user.firstName || user.first_name || 'Без имени';
+        const lastName = user.lastName || user.last_name || '';
         const username = user.username || null;
         const balance = typeof user.balance === 'number' ? user.balance : 0;
-        const subscriptionActive = user.subscription_active === 1 || user.subscription_active === true;
-        const subscriptionPlan = user.subscription_plan || '';
+        const subscriptionActive = user.subscriptionActive === 1 || user.subscriptionActive === true || user.subscription_active === 1 || user.subscription_active === true;
+        const subscriptionPlan = user.subscriptionPlan || user.subscription_plan || '';
 
         const avatarInitial = (firstName !== 'Без имени' ? firstName.charAt(0) : 'U').toUpperCase();
         
@@ -535,8 +535,8 @@ async function saveSettings() {
 // Open user modal
 async function openUserModal(telegramId) {
     console.log('Opening modal for user:', telegramId);
-    
-    const user = allUsers.find(u => String(u.telegram_id || u.id) === String(telegramId));
+
+    const user = allUsers.find(u => String(u.telegramId || u.telegram_id || u.id) === String(telegramId));
     if (!user) {
         showToast('Пользователь не найден', 'error');
         return;
@@ -544,34 +544,37 @@ async function openUserModal(telegramId) {
 
     selectedUser = user;
 
-    // Fill user details
-    document.getElementById('userDetailId').textContent = user.telegram_id || user.id || 'N/A';
-    
-    const firstName = user.first_name || user.first_name === '' ? user.first_name : 'Без имени';
-    const lastName = user.last_name || '';
+    // Fill user details (API returns camelCase)
+    document.getElementById('userDetailId').textContent = user.telegramId || user.telegram_id || user.id || 'N/A';
+
+    const firstName = user.firstName || user.first_name || 'Без имени';
+    const lastName = user.lastName || user.last_name || '';
     const fullName = `${firstName} ${lastName}`.trim() || 'Без имени';
-    
+
     document.getElementById('userDetailName').textContent = fullName;
     document.getElementById('userDetailUsername').textContent = user.username ? `@${user.username}` : '—';
     document.getElementById('userDetailBalance').textContent = `${user.balance || 0} ₽`;
+
+    const subscriptionActive = user.subscriptionActive === 1 || user.subscriptionActive === true || user.subscription_active === 1 || user.subscription_active === true;
+    const subscriptionPlan = user.subscriptionPlan || user.subscription_plan || '';
     
-    const subscriptionText = user.subscription_active
-        ? (user.subscription_plan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ')
+    const subscriptionText = subscriptionActive
+        ? (subscriptionPlan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ')
         : 'Нет';
     document.getElementById('userDetailSubscription').textContent = subscriptionText;
-    
+
     document.getElementById('userDetailSubscriptionEnd').textContent = user.subscription_end
         ? new Date(user.subscription_end).toLocaleDateString('ru-RU')
         : '—';
-    
-    document.getElementById('userDetailDevices').textContent = user.devices_count || 0;
+
+    document.getElementById('userDetailDevices').textContent = user.devices_count || user.devicesCount || 0;
     document.getElementById('userDetailCreatedAt').textContent = user.created_at
         ? new Date(user.created_at).toLocaleDateString('ru-RU')
         : '—';
 
     // Reset form fields
     document.getElementById('editBalance').value = '';
-    document.getElementById('editSubscriptionPlan').value = user.subscription_plan || '';
+    document.getElementById('editSubscriptionPlan').value = subscriptionPlan || '';
     document.getElementById('editSubscriptionEnd').value = user.subscription_end
         ? new Date(user.subscription_end).toISOString().split('T')[0]
         : '';
@@ -603,7 +606,7 @@ async function updateBalance(action) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: selectedUser.telegram_id || selectedUser.id,
+                telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
                 amount: amount,
                 operation: action
             })
@@ -639,7 +642,7 @@ async function updateSubscription() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: selectedUser.telegram_id || selectedUser.id,
+                telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
                 plan: plan || null,
                 endDate: endDate || null
             })
@@ -665,7 +668,7 @@ async function updateSubscription() {
 async function deleteUser() {
     if (!selectedUser) return;
 
-    if (!confirm(`Удалить пользователя ${selectedUser.first_name || 'ID: ' + (selectedUser.telegram_id || selectedUser.id)}?`)) {
+    if (!confirm(`Удалить пользователя ${selectedUser.firstName || selectedUser.first_name || 'ID: ' + (selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id)}?`)) {
         return;
     }
 
@@ -677,7 +680,7 @@ async function deleteUser() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: selectedUser.telegram_id || selectedUser.id
+                telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id
             })
         });
 
