@@ -187,10 +187,21 @@ function showDashboard() {
     const fullName = `${currentAdmin.firstName || ''} ${currentAdmin.lastName || ''}`.trim();
     document.getElementById('adminName').textContent = fullName || currentAdmin.firstName || 'Admin';
     document.getElementById('adminUsername').textContent = currentAdmin.username ? `@${currentAdmin.username}` : '@admin';
+
+    // Set avatar from Telegram photo or initial
+    const avatarImg = document.getElementById('adminAvatarImg');
+    const avatarContainer = document.getElementById('adminAvatar');
     
-    // Set avatar initial
-    const avatarInitial = (currentAdmin.firstName || 'A').charAt(0).toUpperCase();
-    document.getElementById('adminAvatar').textContent = avatarInitial;
+    if (currentAdmin.photoUrl) {
+        avatarImg.src = currentAdmin.photoUrl;
+        avatarImg.style.display = 'block';
+        avatarContainer.textContent = '';
+        avatarContainer.appendChild(avatarImg);
+    } else {
+        avatarImg.style.display = 'none';
+        const avatarInitial = (currentAdmin.firstName || 'A').charAt(0).toUpperCase();
+        avatarContainer.textContent = avatarInitial;
+    }
 
     loadAllData();
 }
