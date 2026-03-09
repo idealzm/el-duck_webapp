@@ -1,12 +1,3 @@
-// Import utilities
-const { ApiClient } = require('./api/apiClient');
-const { SUBSCRIPTION_PLANS, PAYMENT_CHECK_INITIAL_DELAY_MS, PAYMENT_CHECK_INTERVAL_MS, PAYMENT_CHECK_TIMEOUT_MS, MODAL_ANIMATION_DURATION_MS } = require('./constants');
-const SubscriptionHelper = require('./utils/subscriptionHelper');
-const UserMapper = require('./utils/userMapper');
-const TypeUtils = require('./utils/typeUtils');
-const ErrorHandler = require('./utils/errorHandler');
-const ModalManager = require('./utils/modalManager');
-
 // Telegram Web App initialization
 const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
@@ -36,6 +27,13 @@ const APP_VERSION = '1.0.3';
 
 // Store instructions data
 let instructionsData = {};
+
+// ==================== CONSTANTS (inline for browser) ====================
+const SUBSCRIPTION_PLANS = { TELEGRAM: 'telegram', FULL: 'full', NONE: 'none' };
+const PAYMENT_CHECK_INITIAL_DELAY_MS = 3000;
+const PAYMENT_CHECK_INTERVAL_MS = 3000;
+const PAYMENT_CHECK_TIMEOUT_MS = 180000;
+const MODAL_ANIMATION_DURATION_MS = 300;
 
 // User state
 let currentUser = null;
