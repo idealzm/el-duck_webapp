@@ -71,14 +71,44 @@ function getUserByTelegramId(telegramId) {
   const db = getDb();
   const stmt = db.prepare('SELECT * FROM users WHERE telegram_id = :telegram_id');
   stmt.bind({ ':telegram_id': telegramId });
-  
+
   let user = null;
   if (stmt.step()) {
     user = stmt.getAsObject();
   }
   stmt.free();
-  
+
   return user;
+}
+
+/**
+ * Update user data (name, username)
+ */
+function updateUserData(userId, userData) {
+  const db = getDb();
+  const updates = [];
+  const params = { ':id': userId };
+
+  if (userData.firstName !== undefined) {
+    updates.push('first_name = :first_name');
+    params[':first_name'] = userData.firstName || '';
+  }
+  if (userData.lastName !== undefined) {
+    updates.push('last_name = :last_name');
+    params[':last_name'] = userData.lastName || '';
+  }
+  if (userData.username !== undefined) {
+    updates.push('username = :username');
+    params[':username'] = userData.username || '';
+  }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    const stmt = db.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = :id`);
+    stmt.run(params);
+    stmt.free();
+    saveDatabase();
+  }
 }
 
 /**
@@ -234,6 +264,7 @@ module.exports = {
   getOrCreateUser,
   getUserById,
   getUserByTelegramId,
+  updateUserData,
   updateBalance,
   setBalance,
   activateSubscription,

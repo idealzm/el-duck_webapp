@@ -192,7 +192,14 @@ async function loadUserBalance() {
     if (!currentUser || !balanceValue) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        const params = new URLSearchParams({
+            userId: currentUser.id,
+            firstName: currentUser.firstName || '',
+            lastName: currentUser.lastName || '',
+            username: currentUser.username || ''
+        });
+        
+        const response = await fetch(`${API_BASE_URL}/balance?${params}`);
 
         if (response.ok) {
             const data = await response.json();
@@ -322,9 +329,15 @@ function stopPaymentCheck() {
 // Get current balance
 async function getBalance() {
     if (!currentUser) return 0;
-    
+
     try {
-        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        const params = new URLSearchParams({
+            userId: currentUser.id,
+            firstName: currentUser.firstName || '',
+            lastName: currentUser.lastName || '',
+            username: currentUser.username || ''
+        });
+        const response = await fetch(`${API_BASE_URL}/balance?${params}`);
         if (response.ok) {
             const data = await response.json();
             return parseFloat(data.balance || 0);
@@ -338,9 +351,15 @@ async function getBalance() {
 // Check payment status
 async function checkPaymentStatus(paymentId, type) {
     if (!paymentId || !currentUser) return;
-    
+
     try {
-        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        const params = new URLSearchParams({
+            userId: currentUser.id,
+            firstName: currentUser.firstName || '',
+            lastName: currentUser.lastName || '',
+            username: currentUser.username || ''
+        });
+        const response = await fetch(`${API_BASE_URL}/balance?${params}`);
         
         if (response.ok) {
             const data = await response.json();
@@ -650,7 +669,13 @@ async function loadBalanceForSubscription() {
     if (!currentUser) return;
 
     try {
-        const response = await fetch(`${API_BASE_URL}/balance?userId=${currentUser.id}`);
+        const params = new URLSearchParams({
+            userId: currentUser.id,
+            firstName: currentUser.firstName || '',
+            lastName: currentUser.lastName || '',
+            username: currentUser.username || ''
+        });
+        const response = await fetch(`${API_BASE_URL}/balance?${params}`);
         if (response.ok) {
             const data = await response.json();
             const balanceInfo = document.getElementById('balanceInfo');
@@ -658,7 +683,7 @@ async function loadBalanceForSubscription() {
             if (balanceInfo && currentBalance) {
                 currentBalance.textContent = parseFloat(data.balance || 0).toFixed(2);
             }
-            
+
             // Обновляем кнопки подписки с учётом текущей подписки
             updateSubscriptionButtons(data);
         }
