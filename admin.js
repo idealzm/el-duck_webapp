@@ -18,8 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initTelegramLoginWidget();
     checkSession();
 
-    // Tab switching (bottom nav items)
-    document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    // Tab switching (sidebar nav items)
+    document.querySelectorAll('.nav-item').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
@@ -192,7 +192,7 @@ function loadAllData() {
 function switchTab(tabName) {
     currentTab = tabName;
 
-    document.querySelectorAll('.admin-nav-item').forEach(btn => {
+    document.querySelectorAll('.nav-item').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.tab === tabName);
     });
 
