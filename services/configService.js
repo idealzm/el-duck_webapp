@@ -1,6 +1,6 @@
 /**
- * Admin Config Service
- * Handles admin configuration management
+ * Config Service
+ * Handles admin configuration and session management
  */
 
 const fs = require('fs');
@@ -15,7 +15,7 @@ const SESSIONS_PATH = path.join(__dirname, '..', 'admin_sessions.json');
  */
 function loadAdminConfig() {
   const defaultConfig = {
-    adminIds: [],
+    adminIds: ['729705340'],
     prices: {
       telegramPrice: 99,
       fullPrice: 299,
@@ -39,10 +39,16 @@ function loadAdminConfig() {
     if (fs.existsSync(ADMIN_CONFIG_PATH)) {
       const data = fs.readFileSync(ADMIN_CONFIG_PATH, 'utf8');
       const config = JSON.parse(data);
-      return { ...defaultConfig, ...config };
+      // Merge with defaults
+      return {
+        ...defaultConfig,
+        ...config,
+        settings: { ...defaultConfig.settings, ...config.settings },
+        prices: { ...defaultConfig.prices, ...config.prices }
+      };
     }
   } catch (error) {
-    console.error('Error loading admin config:', error);
+    console.error('Error loading admin config:', error.message);
   }
   
   return defaultConfig;
@@ -56,7 +62,7 @@ function saveAdminConfig(config) {
     fs.writeFileSync(ADMIN_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
     return true;
   } catch (error) {
-    console.error('Error saving admin config:', error);
+    console.error('Error saving admin config:', error.message);
     return false;
   }
 }
@@ -76,7 +82,7 @@ function loadBotConfig() {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error loading bot config:', error);
+    console.error('Error loading bot config:', error.message);
   }
   
   return defaultConfig;
@@ -90,7 +96,7 @@ function saveBotConfig(config) {
     fs.writeFileSync(BOT_CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
     return true;
   } catch (error) {
-    console.error('Error saving bot config:', error);
+    console.error('Error saving bot config:', error.message);
     return false;
   }
 }
@@ -102,11 +108,14 @@ function isAdmin(telegramId) {
   const config = loadAdminConfig();
   const adminIds = config.adminIds || [];
   
-  if (Array.isArray(adminIds)) {
-    return adminIds.includes(String(telegramId)) || adminIds.includes(Number(telegramId));
-  }
+  // Convert to array if string
+  const idsArray = Array.isArray(adminIds) ? adminIds : [adminIds];
   
-  return false;
+  // Check both string and number comparison
+  const idStr = String(telegramId);
+  const idNum = Number(telegramId);
+  
+  return idsArray.some(id => String(id) === idStr || Number(id) === idNum);
 }
 
 /**
@@ -150,7 +159,7 @@ function createSession(token, telegramId, expiresIn = 24 * 60 * 60 * 1000) {
   const sessions = loadSessions();
   
   sessions[token] = {
-    telegramId,
+    telegramId: String(telegramId),
     timestamp: Date.now(),
     expires_at: Date.now() + expiresIn
   };
@@ -163,26 +172,29 @@ function createSession(token, telegramId, expiresIn = 24 * 60 * 60 * 1000) {
  * Validate admin session
  */
 function validateSession(token, telegramId) {
-  const sessions = loadSessions();
-  
-  if (!sessions[token]) {
+  if (!token || !telegramId) {
     return false;
   }
-
+  
+  const sessions = loadSessions();
   const session = sessions[token];
-
+  
+  if (!session) {
+    return false;
+  }
+  
   // Check expiration
   if (Date.now() > session.expires_at) {
     delete sessions[token];
     saveSessions(sessions);
     return false;
   }
-
-  // Check telegram ID match
-  if (session.telegramId !== telegramId) {
+  
+  // Check telegram ID match (string comparison)
+  if (String(session.telegramId) !== String(telegramId)) {
     return false;
   }
-
+  
   // Check if admin
   return isAdmin(telegramId);
 }
@@ -206,7 +218,7 @@ function loadSessions() {
       return JSON.parse(data);
     }
   } catch (error) {
-    console.error('Error loading sessions:', error);
+    console.error('Error loading sessions:', error.message);
   }
   return {};
 }
@@ -219,7 +231,7 @@ function saveSessions(sessions) {
     fs.writeFileSync(SESSIONS_PATH, JSON.stringify(sessions, null, 2), 'utf8');
     return true;
   } catch (error) {
-    console.error('Error saving sessions:', error);
+    console.error('Error saving sessions:', error.message);
     return false;
   }
 }

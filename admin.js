@@ -1,3 +1,7 @@
+/**
+ * Admin Panel JavaScript
+ */
+
 // API Configuration
 const API_BASE_URL = '/api';
 
@@ -13,7 +17,7 @@ let settings = {};
 document.addEventListener('DOMContentLoaded', () => {
     initTelegramLoginWidget();
     checkSession();
-    
+
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
@@ -22,53 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Logout
     document.getElementById('logoutBtn').addEventListener('click', logout);
 
-    // Search
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        const query = document.getElementById('userSearch').value;
-        searchUsers(query);
-    });
-
-    document.getElementById('userSearch').addEventListener('input', (e) => {
-        searchUsers(e.target.value);
-    });
-
-    // User modal close
-    document.querySelector('#userModal .modal-close').addEventListener('click', closeUserModal);
-    document.getElementById('userModal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) closeUserModal();
-    });
-
-    // Balance actions
-    document.getElementById('addBalanceBtn').addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('editBalance').value);
-        if (amount > 0 && selectedUser) {
-            updateUserBalance(selectedUser.telegram_id, amount, 'add');
-        }
-    });
-
-    document.getElementById('subtractBalanceBtn').addEventListener('click', () => {
-        const amount = parseFloat(document.getElementById('editBalance').value);
-        if (amount > 0 && selectedUser) {
-            updateUserBalance(selectedUser.telegram_id, amount, 'subtract');
-        }
-    });
-
-    // Subscription update
-    document.getElementById('updateSubscriptionBtn').addEventListener('click', () => {
-        if (selectedUser) {
-            const plan = document.getElementById('editSubscriptionPlan').value;
-            const endDate = document.getElementById('editSubscriptionEnd').value;
-            updateUserSubscription(selectedUser.telegram_id, plan, endDate);
-        }
-    });
-
-    // Delete user
-    document.getElementById('deleteUserBtn').addEventListener('click', () => {
-        if (selectedUser) {
-            deleteUser(selectedUser.telegram_id);
-        }
-    });
-
     // Save prices
     document.getElementById('savePricesBtn').addEventListener('click', savePrices);
 
@@ -76,40 +33,29 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
 });
 
+// Get session data
+function getSessionData() {
+    const session = sessionStorage.getItem('adminSession');
+    return session ? JSON.parse(session) : null;
+}
+
 // Initialize Telegram Login Widget
-async function initTelegramLoginWidget() {
-    // Get bot username from API
-    try {
-        const response = await fetch(`${API_BASE_URL}/admin/bot-config`);
-        const data = await response.json();
-        const botUsername = data.botUsername || 'idealzmtestbot';
-        
-        // Create script element for Telegram widget
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', botUsername);
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-radius', '14');
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-        script.setAttribute('data-request-access', 'write');
-        
-        const widgetContainer = document.getElementById('telegramLoginWidget');
-        widgetContainer.appendChild(script);
-    } catch (error) {
-        console.error('Error loading bot config:', error);
-        // Fallback to default bot username
-        const script = document.createElement('script');
-        script.async = true;
-        script.src = 'https://telegram.org/js/telegram-widget.js?22';
-        script.setAttribute('data-telegram-login', 'your_bot');
-        script.setAttribute('data-size', 'large');
-        script.setAttribute('data-radius', '14');
-        script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-        script.setAttribute('data-request-access', 'write');
-        
-        const widgetContainer = document.getElementById('telegramLoginWidget');
-        widgetContainer.appendChild(script);
+function initTelegramLoginWidget() {
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', 'idealzmtestbot');
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-radius', '12');
+    script.setAttribute('data-request-access', 'write');
+    script.setAttribute('data-userpic', 'false');
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    script.setAttribute('data-lang', 'ru');
+
+    const container = document.getElementById('telegramLoginWidget');
+    if (container) {
+        container.innerHTML = '';
+        container.appendChild(script);
     }
 }
 
@@ -117,7 +63,6 @@ async function initTelegramLoginWidget() {
 function onTelegramAuth(user) {
     console.log('Telegram Auth User:', user);
 
-    // Send user data to backend for verification
     fetch(`${API_BASE_URL}/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -126,7 +71,8 @@ function onTelegramAuth(user) {
     .then(res => res.json())
     .then(data => {
         console.log('Auth Response:', data);
-        if (data.success) {
+        
+        if (data.success && data.token) {
             // Save session
             sessionStorage.setItem('adminSession', JSON.stringify({
                 id: user.id,
@@ -157,37 +103,37 @@ function onTelegramAuth(user) {
 
 // Check existing session
 function checkSession() {
-    const session = sessionStorage.getItem('adminSession');
-    if (session) {
-        const sessionData = JSON.parse(session);
-
-        // Verify session with backend
-        fetch(`${API_BASE_URL}/admin/check`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: sessionData.id,
-                token: sessionData.token
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.isAdmin) {
-                currentAdmin = {
-                    id: sessionData.id,
-                    firstName: sessionData.firstName || 'Admin',
-                    lastName: sessionData.lastName || '',
-                    username: sessionData.username || 'admin'
-                };
-                showDashboard();
-            } else {
-                sessionStorage.removeItem('adminSession');
-            }
-        })
-        .catch(error => {
-            console.error('Session check error:', error);
-        });
+    const sessionData = getSessionData();
+    
+    if (!sessionData || !sessionData.token || !sessionData.id) {
+        return;
     }
+
+    fetch(`${API_BASE_URL}/admin/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            telegramId: sessionData.id,
+            token: sessionData.token
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.isAdmin) {
+            currentAdmin = {
+                id: sessionData.id,
+                firstName: sessionData.firstName || 'Admin',
+                lastName: sessionData.lastName || '',
+                username: sessionData.username || 'admin'
+            };
+            showDashboard();
+        } else {
+            sessionStorage.removeItem('adminSession');
+        }
+    })
+    .catch(error => {
+        console.error('Session check error:', error);
+    });
 }
 
 // Show dashboard
@@ -202,11 +148,13 @@ function showDashboard() {
     loadAllData();
 }
 
-// Show error on login screen
+// Show error
 function showError(message) {
-    const errorEl = document.getElementById('loginError');
-    errorEl.textContent = message;
-    errorEl.style.display = 'block';
+    const errorDiv = document.getElementById('loginError');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
 }
 
 // Load all data
@@ -215,15 +163,6 @@ function loadAllData() {
     loadPrices();
     loadSubscriptions();
     loadSettings();
-}
-
-// Get session data for API requests
-function getSessionData() {
-    const session = sessionStorage.getItem('adminSession');
-    if (session) {
-        return JSON.parse(session);
-    }
-    return null;
 }
 
 // Switch tabs
@@ -244,9 +183,8 @@ function switchTab(tabName) {
 
 // Load users
 async function loadUsers() {
-    const usersList = document.getElementById('usersList');
     const sessionData = getSessionData();
-
+    
     try {
         const response = await fetch(`${API_BASE_URL}/admin/users`, {
             method: 'POST',
@@ -257,24 +195,22 @@ async function loadUsers() {
             })
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const data = await response.json();
         allUsers = data || [];
         renderUsers(allUsers);
     } catch (error) {
         console.error('Load users error:', error);
-        usersList.innerHTML = '<p class="error-message">Ошибка загрузки пользователей</p>';
     }
 }
 
-// Render users list
+// Render users
 function renderUsers(users) {
     const usersList = document.getElementById('usersList');
+    if (!usersList) return;
 
-    if (users.length === 0) {
+    if (!users || users.length === 0) {
         usersList.innerHTML = '<p class="empty-message">Пользователи не найдены</p>';
         return;
     }
@@ -289,196 +225,28 @@ function renderUsers(users) {
         return `
             <div class="user-card" data-user-id="${user.telegram_id}">
                 <div class="user-card-header">
-                    <div class="user-card-left">
-                        <div class="user-avatar">${avatarInitial}</div>
-                        <div class="user-info">
-                            <h4>${escapeHtml(user.first_name || 'Без имени')}</h4>
-                            <p>${user.username ? '@' + escapeHtml(user.username) : 'ID: ' + user.telegram_id}</p>
-                        </div>
+                    <div class="user-avatar">${avatarInitial}</div>
+                    <div class="user-info">
+                        <h4>${escapeHtml(user.first_name || 'Без имени')} ${escapeHtml(user.last_name || '')}</h4>
+                        <p>${user.username ? '@' + escapeHtml(user.username) : 'ID: ' + user.telegram_id}</p>
                     </div>
                 </div>
-                <div class="user-card-stats">
+                <div class="user-card-body">
                     <div class="user-stat">
-                        <span class="user-stat-label">Баланс</span>
-                        <span class="user-stat-value">${parseFloat(user.balance || 0).toFixed(2)} ₽</span>
+                        <span class="label">Баланс</span>
+                        <span class="value">${user.balance} ₽</span>
                     </div>
                     <div class="user-stat">
-                        <span class="user-stat-label">Подписка</span>
-                        <span class="user-stat-value ${hasSubscription ? 'has-subscription' : 'no-subscription'}">${subscriptionText}</span>
-                    </div>
-                    <div class="user-stat">
-                        <span class="user-stat-label">Устройств</span>
-                        <span class="user-stat-value">${user.devices_count || 0}/3</span>
+                        <span class="label">Подписка</span>
+                        <span class="value">${subscriptionText}</span>
                     </div>
                 </div>
+                <button class="btn-user-action" onclick="openUserModal(${user.telegram_id})">
+                    Подробнее
+                </button>
             </div>
         `;
     }).join('');
-
-    // Add click handlers
-    usersList.querySelectorAll('.user-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const userId = card.dataset.userId;
-            const user = allUsers.find(u => u.telegram_id == userId);
-            if (user) openUserModal(user);
-        });
-    });
-}
-
-// Search users
-function searchUsers(query) {
-    const filtered = allUsers.filter(user => {
-        const searchStr = `${user.telegram_id} ${user.username || ''} ${user.first_name || ''}`.toLowerCase();
-        return searchStr.includes(query.toLowerCase());
-    });
-    renderUsers(filtered);
-}
-
-// Open user modal
-function openUserModal(user) {
-    selectedUser = user;
-
-    document.getElementById('userDetailId').textContent = user.telegram_id;
-    document.getElementById('userDetailName').textContent = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Без имени';
-    document.getElementById('userDetailUsername').textContent = user.username ? `@${user.username}` : '—';
-    document.getElementById('userDetailBalance').textContent = `${parseFloat(user.balance || 0).toFixed(2)} ₽`;
-
-    const subscriptionText = user.subscription_active
-        ? (user.subscription_plan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ')
-        : 'Нет';
-    document.getElementById('userDetailSubscription').textContent = subscriptionText;
-
-    if (user.subscription_end) {
-        const date = new Date(user.subscription_end);
-        document.getElementById('userDetailSubscriptionEnd').textContent = date.toLocaleDateString('ru-RU');
-    } else {
-        document.getElementById('userDetailSubscriptionEnd').textContent = '—';
-    }
-
-    document.getElementById('userDetailDevices').textContent = `${user.devices_count || 0}/3`;
-
-    if (user.created_at) {
-        const date = new Date(user.created_at);
-        document.getElementById('userDetailCreatedAt').textContent = date.toLocaleDateString('ru-RU');
-    } else {
-        document.getElementById('userDetailCreatedAt').textContent = '—';
-    }
-
-    // Reset form fields
-    document.getElementById('editBalance').value = '';
-    document.getElementById('editSubscriptionPlan').value = user.subscription_plan || '';
-
-    if (user.subscription_end) {
-        const date = new Date(user.subscription_end);
-        document.getElementById('editSubscriptionEnd').value = date.toISOString().split('T')[0];
-    } else {
-        document.getElementById('editSubscriptionEnd').value = '';
-    }
-
-    document.getElementById('userModal').classList.add('active');
-}
-
-// Close user modal
-function closeUserModal() {
-    document.getElementById('userModal').classList.remove('active');
-    selectedUser = null;
-}
-
-// Update user balance
-async function updateUserBalance(userId, amount, operation) {
-    try {
-        const sessionData = getSessionData();
-
-        const response = await fetch(`${API_BASE_URL}/admin/user/balance`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                amount: Math.abs(amount),
-                operation: operation,
-                token: sessionData?.token,
-                adminTelegramId: sessionData?.id
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showToast('Баланс изменён', 'success');
-            loadUsers();
-            if (selectedUser) openUserModal(selectedUser);
-        } else {
-            showToast(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        console.error('Update balance error:', error);
-        showToast('Ошибка соединения', 'error');
-    }
-}
-
-// Update user subscription
-async function updateUserSubscription(userId, plan, endDate) {
-    try {
-        const sessionData = getSessionData();
-
-        const response = await fetch(`${API_BASE_URL}/admin/user/subscription`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                plan: plan,
-                endDate: endDate || null,
-                token: sessionData?.token,
-                adminTelegramId: sessionData?.id
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showToast('Подписка обновлена', 'success');
-            loadUsers();
-            loadSubscriptions();
-            closeUserModal();
-        } else {
-            showToast(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        console.error('Update subscription error:', error);
-        showToast('Ошибка соединения', 'error');
-    }
-}
-
-// Delete user
-async function deleteUser(userId) {
-    if (!confirm('Вы уверены, что хотите удалить этого пользователя?')) return;
-
-    try {
-        const sessionData = getSessionData();
-
-        const response = await fetch(`${API_BASE_URL}/admin/user/delete`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                telegramId: userId,
-                token: sessionData?.token,
-                adminTelegramId: sessionData?.id
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            showToast('Пользователь удалён', 'success');
-            loadUsers();
-            closeUserModal();
-        } else {
-            showToast(data.error || 'Ошибка', 'error');
-        }
-    } catch (error) {
-        console.error('Delete user error:', error);
-        showToast('Ошибка соединения', 'error');
-    }
 }
 
 // Load prices
@@ -494,8 +262,10 @@ async function loadPrices() {
                 telegramId: sessionData?.id
             })
         });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const data = await response.json();
-
         document.getElementById('telegramPrice').value = data.telegramPrice || 99;
         document.getElementById('fullPrice').value = data.fullPrice || 299;
         document.getElementById('minTopUp').value = data.minTopUp || 50;
@@ -508,6 +278,7 @@ async function loadPrices() {
 
 // Save prices
 async function savePrices() {
+    const sessionData = getSessionData();
     const prices = {
         telegramPrice: parseInt(document.getElementById('telegramPrice').value) || 99,
         fullPrice: parseInt(document.getElementById('fullPrice').value) || 299,
@@ -517,13 +288,11 @@ async function savePrices() {
     };
 
     try {
-        const sessionData = getSessionData();
-
-        const response = await fetch(`${API_BASE_URL}/admin/prices`, {
+        const response = await fetch(`${API_BASE_URL}/admin/prices/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                ...prices, 
+            body: JSON.stringify({
+                ...prices,
                 token: sessionData?.token,
                 telegramId: sessionData?.id
             })
@@ -545,8 +314,7 @@ async function savePrices() {
 // Load subscriptions
 async function loadSubscriptions() {
     const sessionData = getSessionData();
-    const subscriptionsList = document.getElementById('subscriptionsList');
-
+    
     try {
         const response = await fetch(`${API_BASE_URL}/admin/subscriptions`, {
             method: 'POST',
@@ -556,38 +324,35 @@ async function loadSubscriptions() {
                 telegramId: sessionData?.id
             })
         });
-        const data = await response.json();
-
-        allSubscriptions = data || [];
-
-        // Update stats
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        allSubscriptions = await response.json();
+        
         document.getElementById('totalSubscriptions').textContent = allSubscriptions.length;
         document.getElementById('telegramSubscriptions').textContent = allSubscriptions.filter(s => s.subscription_plan === 'telegram').length;
         document.getElementById('fullSubscriptions').textContent = allSubscriptions.filter(s => s.subscription_plan === 'full').length;
-
+        
         renderSubscriptions(allSubscriptions);
     } catch (error) {
         console.error('Load subscriptions error:', error);
-        subscriptionsList.innerHTML = '<p class="error-message">Ошибка загрузки подписок</p>';
     }
 }
 
 // Render subscriptions
 function renderSubscriptions(subscriptions) {
-    const subscriptionsList = document.getElementById('subscriptionsList');
+    const list = document.getElementById('subscriptionsList');
+    if (!list) return;
 
-    if (subscriptions.length === 0) {
-        subscriptionsList.innerHTML = '<p class="empty-message">Активных подписок нет</p>';
+    if (!subscriptions || subscriptions.length === 0) {
+        list.innerHTML = '<p class="empty-message">Активных подписок нет</p>';
         return;
     }
 
-    subscriptionsList.innerHTML = subscriptions.map(sub => {
+    list.innerHTML = subscriptions.map(sub => {
         const icon = sub.subscription_plan === 'telegram' ? '✈️' : '🚀';
         const planName = sub.subscription_plan === 'telegram' ? 'Telegram Proxy' : 'Полный доступ';
         const isActive = sub.subscription_active && sub.subscription_end && new Date(sub.subscription_end) > new Date();
-        const statusClass = isActive ? 'active' : 'expired';
-        const statusText = isActive ? 'Активна' : 'Истекла';
-
         const endDate = sub.subscription_end ? new Date(sub.subscription_end).toLocaleDateString('ru-RU') : '—';
 
         return `
@@ -599,7 +364,7 @@ function renderSubscriptions(subscriptions) {
                         <p>${planName} • До ${endDate}</p>
                     </div>
                 </div>
-                <span class="subscription-status-badge ${statusClass}">${statusText}</span>
+                <span class="subscription-status-badge ${isActive ? 'active' : 'expired'}">${isActive ? 'Активна' : 'Истекла'}</span>
             </div>
         `;
     }).join('');
@@ -618,19 +383,20 @@ async function loadSettings() {
                 telegramId: sessionData?.id
             })
         });
-        const data = await response.json();
-
-        settings = data;
-
-        document.getElementById('siteEnabled').checked = data.siteEnabled !== false;
-        document.getElementById('maintenanceMessage').value = data.maintenanceMessage || '';
-        document.getElementById('wgConfigUrl').value = data.wgConfigUrl || '';
-        document.getElementById('wgMsiUrl').value = data.wgMsiUrl || '';
-        document.getElementById('proxyServer').value = data.proxyServer || '';
-        document.getElementById('proxyPort').value = data.proxyPort || '';
-        document.getElementById('proxyUser').value = data.proxyUser || '';
-        document.getElementById('proxyPass').value = data.proxyPass || '';
-        document.getElementById('adminIds').value = Array.isArray(data.adminIds) ? data.adminIds.join(',') : (data.adminIds || '');
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        settings = await response.json();
+        
+        document.getElementById('siteEnabled').checked = settings.siteEnabled !== false;
+        document.getElementById('maintenanceMessage').value = settings.maintenanceMessage || '';
+        document.getElementById('wgConfigUrl').value = settings.wgConfigUrl || '';
+        document.getElementById('wgMsiUrl').value = settings.wgMsiUrl || '';
+        document.getElementById('proxyServer').value = settings.proxyServer || '';
+        document.getElementById('proxyPort').value = settings.proxyPort || '';
+        document.getElementById('proxyUser').value = settings.proxyUser || '';
+        document.getElementById('proxyPass').value = settings.proxyPass || '';
+        document.getElementById('adminIds').value = Array.isArray(settings.adminIds) ? settings.adminIds.join(', ') : '';
     } catch (error) {
         console.error('Load settings error:', error);
     }
@@ -638,6 +404,16 @@ async function loadSettings() {
 
 // Save settings
 async function saveSettings() {
+    const sessionData = getSessionData();
+    
+    console.log('=== Save Settings ===');
+    console.log('Session:', sessionData);
+    
+    if (!sessionData || !sessionData.token || !sessionData.id) {
+        showToast('Сессия не найдена. Войдите заново.', 'error');
+        return;
+    }
+    
     const newSettings = {
         siteEnabled: document.getElementById('siteEnabled').checked,
         maintenanceMessage: document.getElementById('maintenanceMessage').value,
@@ -649,20 +425,10 @@ async function saveSettings() {
         proxyPass: document.getElementById('proxyPass').value,
         adminIds: document.getElementById('adminIds').value
     };
+    
+    console.log('Settings:', newSettings);
 
     try {
-        const sessionData = getSessionData();
-        
-        console.log('=== Save Settings ===');
-        console.log('Session data:', sessionData);
-        console.log('Settings to save:', newSettings);
-
-        if (!sessionData || !sessionData.token || !sessionData.id) {
-            console.error('No valid session found');
-            showToast('Сессия не найдена. Войдите заново.', 'error');
-            return;
-        }
-
         const response = await fetch(`${API_BASE_URL}/admin/settings/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -674,7 +440,7 @@ async function saveSettings() {
         });
         
         console.log('Response status:', response.status);
-
+        
         const data = await response.json();
         console.log('Response data:', data);
 
@@ -710,16 +476,16 @@ function showToast(message, type = 'success') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
+    toast.innerHTML = `
+        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
+        <span>${escapeHtml(message)}</span>
+    `;
     document.body.appendChild(toast);
 
     toast.offsetHeight;
     toast.classList.add('show');
 
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 2500);
+    setTimeout(() => toast.remove(), 3000);
 }
 
 // Escape HTML
