@@ -246,12 +246,12 @@ function renderUsers(users) {
         const firstName = user.firstName || user.first_name || 'Без имени';
         const lastName = user.lastName || user.last_name || '';
         const username = user.username || null;
-        const balance = typeof user.balance === 'number' ? user.balance : 0;
+        const balance = typeof user.balance === 'number' ? user.balance : parseFloat(user.balance) || 0;
         const subscriptionActive = user.subscriptionActive === 1 || user.subscriptionActive === true || user.subscription_active === 1 || user.subscription_active === true;
         const subscriptionPlan = user.subscriptionPlan || user.subscription_plan || '';
 
         const avatarInitial = (firstName !== 'Без имени' ? firstName.charAt(0) : 'U').toUpperCase();
-        
+
         // Subscription status
         let subscriptionText = 'Нет';
         let subscriptionClass = 'no-subscription';
@@ -282,7 +282,7 @@ function renderUsers(users) {
                 <div class="user-card-stats">
                     <div class="user-stat">
                         <span class="user-stat-label">Баланс</span>
-                        <span class="user-stat-value">${balance} ₽</span>
+                        <span class="user-stat-value">${balance.toFixed(2)} ₽</span>
                     </div>
                     <div class="user-stat">
                         <span class="user-stat-label">Подписка</span>
