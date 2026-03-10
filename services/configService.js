@@ -62,12 +62,16 @@ function loadAdminConfig() {
  */
 function getAdminIdsFromEnv() {
   const envValue = process.env.ADMIN_TELEGRAM_ID;
+  console.log('ADMIN_TELEGRAM_ID env:', envValue);
   if (!envValue) return [];
   
-  return envValue
+  const ids = envValue
     .split(',')
     .map(id => id.trim())
     .filter(id => id && /^\d+$/.test(id));
+  
+  console.log('Parsed admin IDs:', ids);
+  return ids;
 }
 
 /**
