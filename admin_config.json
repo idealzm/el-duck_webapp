@@ -1,9 +1,5 @@
 {
-  "adminIds": [
-    "729705340",
-    "123456789",
-    "987654321"
-  ],
+  "adminIds": [],
   "prices": {
     "telegramPrice": 99,
     "fullPrice": 299,
