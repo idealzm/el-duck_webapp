@@ -14,7 +14,7 @@ function requireAdmin(req, res, next) {
   if (!token) {
     return res.status(403).json({ error: 'Token required' });
   }
-  
+
   if (!telegramId) {
     return res.status(403).json({ error: 'Telegram ID required' });
   }
@@ -24,9 +24,14 @@ function requireAdmin(req, res, next) {
 
   // Validate session
   const isValid = configService.validateSession(token, telegramId);
-  
+
   if (!isValid) {
     return res.status(403).json({ error: 'Access denied' });
+  }
+
+  // Check if user is in admin list
+  if (!configService.isAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Not an admin' });
   }
 
   next();
