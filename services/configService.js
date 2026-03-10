@@ -14,7 +14,7 @@ const SESSIONS_PATH = path.join(__dirname, '..', 'admin_sessions.json');
  */
 function loadAdminConfig() {
   const defaultConfig = {
-    adminIds: [process.env.ADMIN_TELEGRAM_ID || '729705340'],
+    adminIds: getAdminIdsFromEnv(),
     prices: {
       telegramPrice: 99,
       fullPrice: 299,
@@ -38,10 +38,12 @@ function loadAdminConfig() {
     if (fs.existsSync(ADMIN_CONFIG_PATH)) {
       const data = fs.readFileSync(ADMIN_CONFIG_PATH, 'utf8');
       const config = JSON.parse(data);
-      // Merge with defaults
+      // Merge with defaults (adminIds always from env if set)
+      const envAdminIds = getAdminIdsFromEnv();
       return {
         ...defaultConfig,
         ...config,
+        adminIds: envAdminIds.length > 0 ? envAdminIds : (config.adminIds || defaultConfig.adminIds),
         settings: { ...defaultConfig.settings, ...config.settings },
         prices: { ...defaultConfig.prices, ...config.prices }
       };
@@ -51,6 +53,21 @@ function loadAdminConfig() {
   }
 
   return defaultConfig;
+}
+
+/**
+ * Get admin IDs from environment variable
+ * Supports comma-separated values: "123456,789012,345678"
+ * @returns {Array<string>} Array of admin Telegram IDs
+ */
+function getAdminIdsFromEnv() {
+  const envValue = process.env.ADMIN_TELEGRAM_ID;
+  if (!envValue) return [];
+  
+  return envValue
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id && /^\d+$/.test(id));
 }
 
 /**
