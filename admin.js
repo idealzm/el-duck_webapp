@@ -695,7 +695,8 @@ async function updateBalance(action) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
-                telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
+                adminTelegramId: sessionData?.id,  // ID админа для проверки сессии
+                telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,  // ID пользователя для изменения баланса
                 amount: amount,
                 operation: action
             })
@@ -730,9 +731,10 @@ async function updateSubscription() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
+                adminTelegramId: sessionData?.id,
                 telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id,
                 plan: plan === '' ? null : plan,
-                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days from now
+                endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
             })
         });
 
@@ -768,6 +770,7 @@ async function deleteUser() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 token: sessionData?.token,
+                adminTelegramId: sessionData?.id,
                 telegramId: selectedUser.telegramId || selectedUser.telegram_id || selectedUser.id
             })
         });
