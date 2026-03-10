@@ -1,20 +1,24 @@
 {
-    "adminIds": ["729705340"],
-    "prices": {
-        "telegramPrice": 99,
-        "fullPrice": 299,
-        "minTopUp": 50,
-        "maxTopUp": 500,
-        "billingCycle": "month"
-    },
-    "settings": {
-        "siteEnabled": true,
-        "maintenanceMessage": "Технические работы. Сайт временно недоступен.",
-        "wgConfigUrl": "",
-        "wgMsiUrl": "",
-        "proxyServer": "",
-        "proxyPort": "",
-        "proxyUser": "",
-        "proxyPass": ""
-    }
+  "adminIds": [
+    "729705340",
+    "123456789",
+    "987654321"
+  ],
+  "prices": {
+    "telegramPrice": 99,
+    "fullPrice": 299,
+    "minTopUp": 50,
+    "maxTopUp": 500,
+    "billingCycle": "month"
+  },
+  "settings": {
+    "siteEnabled": true,
+    "maintenanceMessage": "",
+    "wgConfigUrl": "",
+    "wgMsiUrl": "",
+    "proxyServer": "",
+    "proxyPort": "",
+    "proxyUser": "",
+    "proxyPass": ""
+  }
 }

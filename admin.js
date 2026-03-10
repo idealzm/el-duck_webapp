@@ -541,6 +541,9 @@ async function loadSettings() {
 
         settings = await response.json();
 
+        console.log('Settings loaded:', settings);
+        console.log('siteEnabled:', settings.siteEnabled);
+
         document.getElementById('siteEnabled').checked = settings.siteEnabled !== false;
         document.getElementById('maintenanceMessage').value = settings.maintenanceMessage || '';
         document.getElementById('wgConfigUrl').value = settings.wgConfigUrl || '';
@@ -550,6 +553,8 @@ async function loadSettings() {
         document.getElementById('proxyUser').value = settings.proxyUser || '';
         document.getElementById('proxyPass').value = settings.proxyPass || '';
         document.getElementById('adminIds').value = Array.isArray(settings.adminIds) ? settings.adminIds.join(', ') : (settings.adminIds || '');
+        
+        console.log('Checkbox checked:', document.getElementById('siteEnabled').checked);
     } catch (error) {
         console.error('Load settings error:', error);
     }
@@ -558,9 +563,6 @@ async function loadSettings() {
 // Save settings
 async function saveSettings() {
     const sessionData = getSessionData();
-
-    console.log('=== Save Settings ===');
-    console.log('Session:', sessionData);
 
     if (!sessionData || !sessionData.token || !sessionData.id) {
         showToast('Сессия не найдена. Войдите заново.', 'error');
@@ -599,10 +601,7 @@ async function saveSettings() {
             })
         });
 
-        console.log('Response status:', response.status);
-
         const data = await response.json();
-        console.log('Response data:', data);
 
         if (data.success) {
             showToast('Настройки сохранены', 'success');
