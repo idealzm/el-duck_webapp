@@ -109,7 +109,7 @@ function onTelegramAuth(user) {
     console.log('Telegram Auth User:', user);
 
     // Get initData from Telegram WebApp for validation
-    const initData = tg.initData || '';
+    const initData = (tg && tg.initData) || '';
 
     fetch(`${API_BASE_URL}/admin/auth`, {
         method: 'POST',
