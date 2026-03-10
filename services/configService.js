@@ -62,16 +62,12 @@ function loadAdminConfig() {
  */
 function getAdminIdsFromEnv() {
   const envValue = process.env.ADMIN_TELEGRAM_ID;
-  console.log('ADMIN_TELEGRAM_ID env:', envValue);
   if (!envValue) return [];
   
-  const ids = envValue
+  return envValue
     .split(',')
     .map(id => id.trim())
     .filter(id => id && /^\d+$/.test(id));
-  
-  console.log('Parsed admin IDs:', ids);
-  return ids;
 }
 
 /**
@@ -108,12 +104,6 @@ function isAdmin(telegramId) {
   const config = loadAdminConfig();
   const adminIds = config.adminIds || [];
 
-  console.log('isAdmin check:', {
-    telegramId,
-    adminIds,
-    adminIdsType: Array.isArray(adminIds) ? 'array' : typeof adminIds
-  });
-
   // Convert to array if string
   const idsArray = Array.isArray(adminIds) ? adminIds : [adminIds];
 
@@ -121,14 +111,7 @@ function isAdmin(telegramId) {
   const idStr = String(telegramId);
   const idNum = Number(telegramId);
 
-  const result = idsArray.some(id => {
-    const match = String(id) === idStr || Number(id) === idNum;
-    console.log(`Comparing ${id} with ${telegramId}: ${match}`);
-    return match;
-  });
-
-  console.log('isAdmin result:', result);
-  return result;
+  return idsArray.some(id => String(id) === idStr || Number(id) === idNum);
 }
 
 /**

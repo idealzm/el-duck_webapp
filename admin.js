@@ -105,10 +105,22 @@ async function initTelegramLoginWidget() {
 function onTelegramAuth(user) {
     console.log('Telegram Auth User:', user);
 
+    // Get initData from Telegram WebApp for validation
+    const initData = tg.initData || '';
+
     fetch(`${API_BASE_URL}/admin/auth`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user)
+        body: JSON.stringify({
+            initData,
+            user: {
+                id: user.id,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                photo_url: user.photo_url
+            }
+        })
     })
     .then(res => res.json())
     .then(data => {
@@ -134,7 +146,7 @@ function onTelegramAuth(user) {
 
             showDashboard();
         } else {
-            showError(data.error || 'Ошибка авторизации');
+            showError(data.error || 'Ошибка авторизации. Проверьте что ваш Telegram ID добавлен в админы.');
         }
     })
     .catch(error => {

@@ -12,22 +12,44 @@ const { requireAdmin } = require('../middleware/auth');
 const { getDb } = require('../database/init');
 
 /**
- * POST /api/admin/auth - Login
+ * POST /api/admin/auth - Login via Telegram WebApp
+ * Validates initData from Telegram and creates admin session
  */
-router.post('/auth', (req, res) => {
+router.post('/auth', async (req, res) => {
   try {
-    const telegramId = req.body.telegramId || req.body.id;
+    const { initData, user } = req.body;
+
+    // Support both new (initData) and old (direct user) auth methods
+    const telegramId = user?.id || req.body.telegramId || req.body.id;
 
     if (!telegramId) {
-      return res.status(400).json({ error: 'telegramId is required' });
+      return res.status(400).json({ 
+        error: 'telegramId is required',
+        hint: 'Send { initData } or { user: { id } } in request body'
+      });
     }
 
+    // Validate initData if provided (more secure)
+    if (initData) {
+      const isValid = await validateTelegramInitData(initData);
+      if (!isValid) {
+        return res.status(403).json({ error: 'Invalid Telegram initData' });
+      }
+    }
+
+    // Check if user is admin
     if (!configService.isAdmin(telegramId)) {
-      return res.status(403).json({ error: 'Access denied. Not an admin.' });
+      return res.status(403).json({ 
+        error: 'Access denied. Not an admin.',
+        hint: 'Add your Telegram ID to ADMIN_TELEGRAM_ID in .env or admin_config.json'
+      });
     }
 
+    // Create session token
     const token = `admin_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
     configService.createSession(token, telegramId);
+
+    console.log(`Admin login successful: ${telegramId}`);
 
     res.json({
       success: true,
@@ -39,6 +61,57 @@ router.post('/auth', (req, res) => {
     res.status(500).json({ error: 'Authentication failed' });
   }
 });
+
+/**
+ * Validate Telegram WebApp initData
+ * @param {string} initData - Raw initData string from Telegram
+ * @returns {Promise<boolean>} True if valid
+ */
+async function validateTelegramInitData(initData) {
+  const botToken = process.env.BOT_TOKEN;
+  
+  if (!botToken) {
+    console.warn('BOT_TOKEN not set, skipping initData validation');
+    return true; // Skip validation if token not set
+  }
+
+  try {
+    // Parse initData
+    const params = new URLSearchParams(initData);
+    const hash = params.get('hash');
+    
+    if (!hash) {
+      console.error('No hash in initData');
+      return false;
+    }
+
+    // Remove hash from data
+    params.delete('hash');
+
+    // Sort and format data
+    const dataCheckArr = [];
+    for (const [key, value] of params.entries()) {
+      dataCheckArr.push(`${key}=${value}`);
+    }
+    dataCheckArr.sort();
+
+    const dataCheckString = dataCheckArr.join('\n');
+
+    // Create HMAC-SHA256 hash
+    const crypto = require('crypto');
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(botToken).digest();
+    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+    // Compare hashes
+    const isValid = calculatedHash === hash;
+    console.log('Telegram initData validation:', isValid ? 'SUCCESS' : 'FAILED');
+    
+    return isValid;
+  } catch (error) {
+    console.error('Telegram initData validation error:', error.message);
+    return false;
+  }
+}
 
 /**
  * GET /api/admin/bot-username - Get bot username for login widget
