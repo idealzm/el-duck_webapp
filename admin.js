@@ -5,6 +5,9 @@
 // API Configuration
 const API_BASE_URL = '/api';
 
+// Telegram WebApp
+const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
 // State
 let currentAdmin = null;
 let currentTab = 'users';
