@@ -107,15 +107,28 @@ function getBotUsername() {
 function isAdmin(telegramId) {
   const config = loadAdminConfig();
   const adminIds = config.adminIds || [];
-  
+
+  console.log('isAdmin check:', {
+    telegramId,
+    adminIds,
+    adminIdsType: Array.isArray(adminIds) ? 'array' : typeof adminIds
+  });
+
   // Convert to array if string
   const idsArray = Array.isArray(adminIds) ? adminIds : [adminIds];
-  
+
   // Check both string and number comparison
   const idStr = String(telegramId);
   const idNum = Number(telegramId);
-  
-  return idsArray.some(id => String(id) === idStr || Number(id) === idNum);
+
+  const result = idsArray.some(id => {
+    const match = String(id) === idStr || Number(id) === idNum;
+    console.log(`Comparing ${id} with ${telegramId}: ${match}`);
+    return match;
+  });
+
+  console.log('isAdmin result:', result);
+  return result;
 }
 
 /**
