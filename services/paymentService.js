@@ -243,7 +243,6 @@ module.exports = {
   createTopUpPayment,
   paySubscriptionFromBalance,
   getAllPayments,
-  calculateSubscriptionEnd,
 
   // New service exports
   getYookassaService,

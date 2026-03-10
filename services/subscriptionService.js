@@ -4,7 +4,6 @@
  */
 
 const { SUBSCRIPTION_EXTENSION_MONTHS } = require('../constants');
-const { calculateSubscriptionEnd } = require('./paymentService');
 
 class SubscriptionService {
   constructor(userService) {
@@ -17,7 +16,36 @@ class SubscriptionService {
    * @returns {Date} Subscription end date
    */
   calculateEndDate(user) {
-    return calculateSubscriptionEnd(user);
+    let subscriptionEnd = new Date();
+
+    if (user.subscription_active && user.subscription_end) {
+      // Parse date properly (handle both formats: "2026-04-08 21:39:54" and "2026-04-08T21:39:54.100Z")
+      const endDateStr = user.subscription_end.includes('T')
+        ? user.subscription_end
+        : user.subscription_end.replace(' ', 'T');
+      const endDate = new Date(endDateStr);
+
+      if (endDate > new Date()) {
+        // Extend from current end date - add 1 month safely
+        subscriptionEnd = new Date(endDate);
+        const currentMonth = subscriptionEnd.getMonth();
+        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+        // Handle edge case: Jan 31 + 1 month = Mar 3 (not Feb 31 which doesn't exist)
+        if (subscriptionEnd.getMonth() !== (currentMonth + 1) % 12) {
+          subscriptionEnd.setDate(0); // Set to last day of previous month
+        }
+      } else {
+        // End date is in the past, start from now
+        subscriptionEnd = new Date();
+        subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+      }
+    } else {
+      // New subscription from now
+      subscriptionEnd = new Date();
+      subscriptionEnd.setMonth(subscriptionEnd.getMonth() + 1);
+    }
+
+    return subscriptionEnd;
   }
 
   /**
