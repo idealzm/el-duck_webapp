@@ -57,10 +57,30 @@ function loadAdminConfig() {
 
 /**
  * Get admin IDs from environment variable
- * Supports comma-separated values: "123456,789012,345678"
+ * Supports multiple formats:
+ * - ADMIN_TELEGRAM_ID=729705340,123456789,987654321 (comma-separated)
+ * - ADMIN_TELEGRAM_ID_1=729705340, ADMIN_TELEGRAM_ID_2=123456789, etc.
  * @returns {Array<string>} Array of admin Telegram IDs
  */
 function getAdminIdsFromEnv() {
+  const ids = [];
+  
+  // Try numbered variables first: ADMIN_TELEGRAM_ID_1, ADMIN_TELEGRAM_ID_2, etc.
+  let i = 1;
+  while (process.env[`ADMIN_TELEGRAM_ID_${i}`]) {
+    const id = String(process.env[`ADMIN_TELEGRAM_ID_${i}`]).trim();
+    if (/^\d+$/.test(id)) {
+      ids.push(id);
+    }
+    i++;
+  }
+  
+  // If numbered variables found, return them
+  if (ids.length > 0) {
+    return ids;
+  }
+  
+  // Fall back to comma-separated ADMIN_TELEGRAM_ID
   const envValue = process.env.ADMIN_TELEGRAM_ID;
   if (!envValue) return [];
   

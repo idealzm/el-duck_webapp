@@ -11,11 +11,14 @@
 - **Rate Limiting** — 100 запросов на 15 минут с одного IP
 - **CORS** — строгая проверка доменов
 - **Валидация данных** — проверка всех входящих данных
+- **Telegram initData валидация** — HMAC-SHA256 проверка данных от Telegram
 
 ### Токены
 - Генерация через `crypto.randomBytes()` (не `Math.random()`)
 - Срок действия сессии: 24 часа
-- Одноразовые CSRF токены
+
+### Мульти-админ
+Поддержка нескольких администраторов через `.env` или `admin_config.json`.
 
 ## 🚀 Быстрый старт
 
@@ -89,50 +92,88 @@ pm2 start ecosystem.config.js
 
 ## 🔐 Аутентификация администратора
 
-### 1. Получить CSRF токен и bot username
-```bash
-curl -X GET "http://localhost:3000/api/admin/config?telegramId=729705340"
-```
+### Вход через Telegram WebApp
 
-Ответ:
-```json
-{
-  "botUsername": "your_bot",
-  "csrfToken": "abc123..."
-}
-```
+Админ-панель использует Telegram WebApp для аутентификации. При входе:
 
-### 2. Войти
+1. Пользователь нажимает "Login via Telegram"
+2. Telegram возвращает данные пользователя и `initData`
+3. Сервер проверяет `initData` через HMAC-SHA256
+4. Сервер проверяет что Telegram ID есть в списке админов
+5. Создаётся сессия с токеном
+
+### API аутентификации
+
+**POST `/api/admin/auth`** — Вход
+
 ```bash
 curl -X POST http://localhost:3000/api/admin/auth \
   -H "Content-Type: application/json" \
-  -d '{"telegramId": 729705340}'
+  -d '{
+    "initData": "query_id=...&user={...}&hash=...",
+    "user": {
+      "id": 729705340,
+      "first_name": "John",
+      "last_name": "Doe",
+      "username": "johndoe"
+    }
+  }'
 ```
 
 Ответ:
 ```json
 {
   "success": true,
-  "token": "admin_...",
+  "token": "admin_1773106220104_eaa2280b42e7d8cd",
   "telegramId": 729705340
 }
 ```
 
-### 3. Использование токенов
+**POST `/api/admin/check`** — Проверка сессии
+
 ```bash
-curl -X POST http://localhost:3000/api/admin/user/balance \
+curl -X POST http://localhost:3000/api/admin/check \
   -H "Content-Type: application/json" \
-  -H "X-CSRF-Token: abc123..." \
   -d '{
     "token": "admin_...",
-    "telegramId": 729705340,
-    "telegramId": 123456,
-    "amount": 100,
-    "operation": "add"
+    "telegramId": 729705340
   }'
 ```
 
-⚠️ **Важно:** CSRF токены одноразовые. Для каждого mutating запроса нужен новый токен.
+Ответ:
+```json
+{
+  "isAdmin": true
+}
+```
+
+### Мульти-админ настройка
+
+Для добавления нескольких администраторов:
+
+**Вариант 1: Через `.env`**
+```bash
+ADMIN_TELEGRAM_ID_1=729705340
+ADMIN_TELEGRAM_ID_2=123456789
+ADMIN_TELEGRAM_ID_3=987654321
+```
+
+**Вариант 2: Через `admin_config.json`**
+```json
+{
+  "adminIds": ["729705340", "123456789", "987654321"]
+}
+```
+
+⚠️ **Важно:** `.env` имеет приоритет над `admin_config.json`.
+
+### Как узнать Telegram ID
+
+1. **Через бота**: Отправь сообщение [@userinfobot](https://t.me/userinfobot)
+2. **Через консоль**: В консоли браузера на странице админки:
+   ```javascript
+   console.log(currentAdmin.id)
+   ```
 
 ## 📁 Структура проекта
 
@@ -199,15 +240,21 @@ YOOKASSA_SHOP_ID=your_real_shop_id
 YOOKASSA_SECRET_KEY=your_real_secret_key
 BOT_TOKEN=your_bot_token
 BOT_USERNAME=your_bot_username
-ADMIN_TELEGRAM_ID=your_telegram_id
+
+# Для нескольких админов используйте нумерованные переменные
+ADMIN_TELEGRAM_ID_1=729705340
+ADMIN_TELEGRAM_ID_2=123456789
+ADMIN_TELEGRAM_ID_3=987654321
+# Можно добавить больше: ADMIN_TELEGRAM_ID_4, ADMIN_TELEGRAM_ID_5, и т.д.
+
 SESSION_SECRET=your_random_secure_string
 DOMAIN=https://your-domain.com
 ```
 
-3. Создайте `admin_config.json`:
+3. Создайте `admin_config.json` (если не используете .env):
 ```json
 {
-  "adminIds": ["your_telegram_id"],
+  "adminIds": ["729705340", "123456789", "987654321"],
   "prices": {
     "telegramPrice": 99,
     "fullPrice": 299,
@@ -249,17 +296,29 @@ DOMAIN=https://your-domain.com
 
 ## 💳 YooKassa
 
-⚠️ **Важно:** Для продакшена замените тестовые ключи на реальные в `.env`:
+### Настройка
 
+1. Получите тестовые ключи в [кабинете YooKassa](https://yookassa.ru/developers/sandbox)
+2. Заполните `.env`:
 ```bash
-YOOKASSA_SHOP_ID=your_real_shop_id
-YOOKASSA_SECRET_KEY=your_real_secret_key
+YOOKASSA_SHOP_ID=your_shop_id
+YOOKASSA_SECRET_KEY=your_secret_key
 ```
 
-Webhook URL для настройки в YooKassa:
+3. Для продакшена используйте реальные ключи
+
+### Webhook
+
+Настройте webhook в кабинете YooKassa:
 ```
 https://your-domain.com/api/payment/webhook
 ```
+
+### Тестирование
+
+Используйте тестовые карты YooKassa:
+- Карта для успешной оплаты: `5185730429475164`
+- Карта для отказа: `5185730429475172`
 
 ## 📝 Примеры использования
 
@@ -306,22 +365,26 @@ fetch('http://localhost:3000/api/subscription/pay', {
 .then(data => console.log(data));
 ```
 
-### Админ: изменение баланса с CSRF токеном
+### Админ: изменение баланса
 
 ```javascript
-// 1. Получить CSRF токен
-const configRes = await fetch('http://localhost:3000/api/admin/config?telegramId=729705340');
-const { csrfToken } = await configRes.json();
+// 1. Войти через Telegram
+const authRes = await fetch('http://localhost:3000/api/admin/auth', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    initData: 'query_id=...&user={...}&hash=...',
+    user: { id: 729705340, first_name: 'John' }
+  })
+});
+const { token } = await authRes.json();
 
 // 2. Изменить баланс
 fetch('http://localhost:3000/api/admin/user/balance', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'X-CSRF-Token': csrfToken
-  },
+  headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    token: 'admin_session_token',
+    token: token,
     telegramId: 123456,
     amount: 100,
     operation: 'add'
@@ -336,8 +399,9 @@ fetch('http://localhost:3000/api/admin/user/balance', {
 1. **База данных** хранится в `database.db` (SQLite)
 2. **Сессии администраторов** хранятся в `admin_sessions.json` (24 часа)
 3. **YooKassa webhook** должен быть настроен на `https://your-domain.com/api/payment/webhook`
-4. **CSRF токены** одноразовые — для каждого mutating запроса нужен новый
+4. **Мульти-админ** — используйте `ADMIN_TELEGRAM_ID_1`, `ADMIN_TELEGRAM_ID_2` и т.д. в `.env`
 5. **Rate limiting** — 100 запросов на 15 минут с одного IP
+6. **Telegram initData** — валидируется через HMAC-SHA256 для безопасности
 
 ## 🐛 Устранение проблем
 
